@@ -23,6 +23,9 @@ SERVER :== "irc.freenode.net"
 
 KEY :== "PRIVMSG #cloogle :!"
 
+shorten :: String *World -> (String, *World)
+shorten s w = ("not implemented yet", w)
+
 send :: [String] TCP_DuplexChannel *World -> (TCP_DuplexChannel, *World)
 send [] chan w = (chan, w)
 send [msg:msgs] {sChannel,rChannel} w
@@ -47,26 +50,31 @@ process io chan w
 # resp = fromJust mr
 #! io = io <<< ("Received: " +++ resp +++ "\n")
 # ind = indexOf KEY resp
-| ind > 0
+| ind >= 0
 	# cmd = split " " $ rtrim $ subString (ind + size KEY) (size resp) resp
 	#! io =  io <<< ("Received command: " +++ printToString cmd +++ "\n")
-	# toSend = case cmd of
-		["stop":_] = Nothing
-		["ping":xs] = Just [msg $ "pong " +++ join " " xs]
-		["help"] = Just 
+	# (w, toSend) = case cmd of
+		["stop":_] = (w, Nothing)
+		["ping":xs] = (w, Just [msg $ "pong " +++ join " " xs])
+		["short"] = (w, Just [msg $ "short requires an url argument"])
+		["short":xs]
+			# (s, w) = shorten (join " " xs) w
+			= (w, Just [msg s])
+		["help"] = (w, Just 
 			[msg "type !help cmd for command specific help"
-			,msg "available commands: help, ping"]
-		["help":c:_] = case c of
-			"help" = Just [msg "help [CMD] - I will print general help or the help of CMD"] 
-			"ping" = Just [msg "ping [TXT] - I will reply with pong and the optionar TXT"] 
-			_ = Just [msg "Unknown command"]
-		[c:_] = Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]]
+			,msg "available commands: help, short, ping"])
+		["help":c:_] = (w, case c of
+			"help"  = Just [msg "help  [CMD] - I will print general help or the help of CMD"] 
+			"short" = Just [msg "short  URL  - I will give the url to https://cloo.gl shortening service and post back the result"]
+			"ping"  = Just [msg "ping  [TXT] - I will reply with pong and the optionar TXT"] 
+			_ = Just [msg "Unknown command"])
+		[c:_] = (w, Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]])
 	| isNothing toSend = (io, chan, w)
 	# (chan, w) = send (map toString $ fromJust toSend) chan w
 	= process io chan w
-| indexOf "PING :" resp > 0
+| indexOf "PING :" resp >= 0
 	# cmd = rtrim $ subString (indexOf "PING :" resp + size "PING :") (size resp) resp
-	#! io <<< (toString $ PONG cmd Nothing) <<< "\n"
+	#! io = io <<< (toString $ PONG cmd Nothing) <<< "\n"
 	# (chan, w) = send [toString $ PONG cmd Nothing] chan w
 	= process io chan w
 = process io chan w
