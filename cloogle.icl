@@ -53,7 +53,13 @@ process io chan w
 	# toSend = case cmd of
 		["stop":_] = Nothing
 		["ping":_] = Just [msg "pong"]
-		["help":_] = Just [msg "not implemented yet"]
+		["help"] = Just 
+			[msg "type !help cmd for command specific help"
+			,msg "available commands: help, ping"]
+		["help":c:_] = case c of
+			"help" = Just [msg "I will print help text"] 
+			"ping" = Just [msg "I will reply with pong"] 
+			_ = Just [msg "Unknown command"]
 		[c:_] = Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]]
 	| isNothing toSend = (io, chan, w)
 	# (chan, w) = send (map toString $ fromJust toSend) chan w
