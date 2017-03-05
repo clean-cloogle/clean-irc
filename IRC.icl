@@ -40,7 +40,7 @@ instance toString IRCCommands where
 	//PASS String
 	//PING [String]
 	//PONG [String]
-		PRIVMSG dest msg = join " " ["PRIVMSG", dest, msg]
+		PRIVMSG dest msg = join " " ["PRIVMSG", dest, ":"+++msg]
 		QUIT msg = join " " ["QUIT":maybeToList msg]
 	//REHASH 
 	//RESTART 
@@ -55,7 +55,7 @@ instance toString IRCCommands where
 	//TIME (Maybe String)
 	//TOPIC String (Maybe String)
 	//TRACE (Maybe String)
-		USER login mode rn = join " " ["USER", login, toString mode, "*", ":", rn]
+		USER login mode rn = join " " ["USER", login, toString mode, "*", ":"+++rn]
 	//USERHOST [String]
 	//USERS (Maybe String)
 	//VERSION (Maybe String)
