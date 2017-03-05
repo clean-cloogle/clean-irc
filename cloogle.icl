@@ -7,7 +7,19 @@ import StdEnv
 import Data.Functor
 import Data.Maybe
 from Data.Func import $
-from Text import class Text(..), instance Text String
+from Text import class Text(..), instance Text String, instance + String
+
+
+import Control.Applicative
+import qualified Control.Monad as CM
+import qualified Data.Map as DM
+from Control.Monad import class Monad, instance Monad Maybe
+from Text.Encodings.UrlEncoding import urlEncode
+import Internet.HTTP
+import Data.Error
+import Data.List
+import Data.Functor
+import Data.Tuple
 
 import TCPIP
 
@@ -23,8 +35,61 @@ SERVER :== "irc.freenode.net"
 
 KEY :== "PRIVMSG #cloogle :!"
 
+doRequest :: HTTPRequest *World -> *(MaybeErrorString HTTPResponse, *World)
+doRequest req w
+# (ip,w) = lookupIPAddress server_name w
+| isNothing ip
+	= (Error $ "DNS lookup for " + server_name + " failed.", w)
+# (Just ip) = ip
+# (rpt,chan,w) = connectTCP_MT TIMEOUT (ip, req.server_port) w
+| rpt == TR_Expired
+	= (Error $ "Connection to " + toString ip + " timed out.", w)
+| rpt == TR_NoSuccess
+	= (Error $ "Could not connect to " + server_name + ".", w)
+# (Just {sChannel,rChannel}) = chan
+# (rpt,i,sChannel,w) = send_MT TIMEOUT (toByteSeq req) sChannel w
+| rpt <> TR_Success
+	= (Error $ "Could not send request to " + server_name + ".", w)
+# (rpt,resp,rChannel,w) = receive_MT TIMEOUT rChannel w
+| rpt <> TR_Success
+	= (Error $ "Did not receive a reply from " + server_name + ".", w)
+# resp = 'CM'.join $ parseResponse <$> toString <$> resp
+| isNothing resp
+	# w = closeChannel sChannel (closeRChannel rChannel w)
+	= (Error $ "Server did not respond with HTTP.", w)
+# (resp,rChannel,w) = receiveRest (fromJust resp) rChannel w
+# w = closeChannel sChannel (closeRChannel rChannel w)
+= (resp,w)
+where
+	server_name = req.server_name
+	receiveRest resp chan w
+	# cl = lookup "Content-Length" resp.HTTPResponse.rsp_headers
+	| isNothing cl
+		= (Ok resp, chan, w)
+	| size resp.rsp_data >= toInt (fromJust cl)
+		= (Ok resp, chan, w)
+	# (rpt,newresp,chan,w) = receive_MT TIMEOUT chan w
+	| rpt <> TR_Success
+		= (Error $ server_name + " hung up during transmission.", chan, w)
+	= receiveRest {resp & rsp_data=resp.rsp_data + toString (fromJust newresp)} chan w
+
 shorten :: String *World -> (String, *World)
-shorten s w = ("not implemented yet", w)
+shorten s w 
+# data = "type=regular&url="+urlEncode s+"&token=a"
+# (mer, w) = doRequest 
+		{ newHTTPRequest
+		& req_method = HTTP_POST
+		, req_path = "/"
+		, server_name = "cloo.gl"
+		, server_port = 80
+		, req_headers = 'DM'.fromList
+			[("Content-Type", "application/x-www-form-urlencoded")
+			,("Content-Length", toString $ size data)
+			,("Accept", "*/*")]
+		, req_data = data} w
+| isError mer = ("request failed: " + fromError mer, w)
+# resp = fromOk mer
+= (resp.rsp_data, w)
 
 send :: [String] TCP_DuplexChannel *World -> (TCP_DuplexChannel, *World)
 send [] chan w = (chan, w)
