@@ -1,5 +1,6 @@
 definition module IRC
 
+from Data.Either import :: Either
 from Data.Maybe import :: Maybe
 from StdOverloaded import class fromInt, class toInt, class toString
 
@@ -12,7 +13,7 @@ from StdOverloaded import class fromInt, class toInt, class toString
 	| INFO (Maybe String)
 	| INVITE String String
 	| ISON [String]
-	| JOIN [(String, Maybe String)]
+	| JOIN (Either () [(String, Maybe String)])
 	| KICK String String (Maybe String)
 	| KILL String String
 	| LINKS (Maybe (Maybe String, String))
@@ -23,18 +24,18 @@ from StdOverloaded import class fromInt, class toInt, class toString
 	| NAMES [String]
 	| NICK String
 	| NJOIN 
-	| NOTICE 
+	| NOTICE String String
 	| OPER String String 
 	| PART [String]
 	| PASS String
 	| PING [String]
 	| PONG [String]
 	| PRIVMSG String String
-	| QUIT String
+	| QUIT (Maybe String)
 	| REHASH 
 	| RESTART 
 	| SERVER 
-	| SERVICE 
+	| SERVICE String String String String
 	| SERVLIST (Maybe (String, Maybe String))
 	| SQUERY String String
 	| SQUIRT 
@@ -44,11 +45,11 @@ from StdOverloaded import class fromInt, class toInt, class toString
 	| TIME (Maybe String)
 	| TOPIC String (Maybe String)
 	| TRACE (Maybe String)
-	| USER String String String
+	| USER String Int String
 	| USERHOST [String]
 	| USERS (Maybe String)
 	| VERSION (Maybe String)
-	| WALLOPS 
+	| WALLOPS String
 	| WHO (Maybe String)
 	| WHOIS (Maybe String) [String]
 	| WHOWAS (Maybe String) [String]

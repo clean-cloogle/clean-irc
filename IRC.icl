@@ -3,11 +3,68 @@ implementation module IRC
 import GenPrint
 import StdOverloaded
 import Data.Maybe
+import Data.Either
+import StdFunc
+import StdString
+from Text import class Text(..), instance Text String
 from StdMisc import undef
 
-derive gPrint IRCCommands, IRCReplies, IRCErrors, (,), Maybe, ()
+derive gPrint IRCCommands, IRCReplies, IRCErrors, (,), Maybe, (), Either
 
-instance toString IRCCommands where toString r = printToString r
+instance toString IRCCommands where
+	toString r = flip (+++) "\r\n" case r of
+	//ADMIN (Maybe String)
+	//AWAY String
+	//CONNECT String Int (Maybe String)
+	//DIE 
+	//ERROR String
+	//INFO (Maybe String)
+	//INVITE String String
+	//ISON [String]
+		JOIN chs = "JOIN " +++ either (const "0")
+			(\c->join ", " [join " " [ch:maybeToList mkey]\\(ch, mkey)<-c]) chs
+	//KICK String String (Maybe String)
+	//KILL String String
+	//LINKS (Maybe (Maybe String, String))
+	//LIST [String]
+	//LUSERS (Maybe (String, Maybe String))
+	//MODE String
+	//MOTD (Maybe String)
+	//NAMES [String]
+		NICK n = join " " ["NICK", n]
+	//NJOIN 
+	//NOTICE String String
+	//OPER String String 
+	//PART [String]
+	//PASS String
+	//PING [String]
+	//PONG [String]
+		PRIVMSG dest msg = join " " ["PRIVMSG", dest, msg]
+		QUIT msg = join " " ["QUIT":maybeToList msg]
+	//REHASH 
+	//RESTART 
+	//SERVER 
+	//SERVICE String String String String
+	//SERVLIST (Maybe (String, Maybe String))
+	//SQUERY String String
+	//SQUIRT 
+	//SQUIT String String
+	//STATS (Maybe (String, Maybe String))
+	//SUMMON String (Maybe (String, Maybe String))
+	//TIME (Maybe String)
+	//TOPIC String (Maybe String)
+	//TRACE (Maybe String)
+		USER login mode rn = join " " ["USER", login, toString mode, "*", ":", rn]
+	//USERHOST [String]
+	//USERS (Maybe String)
+	//VERSION (Maybe String)
+	//WALLOPS String
+	//WHO (Maybe String)
+	//WHOIS (Maybe String) [String]
+	//WHOWAS (Maybe String) [String]
+		_ = printToString r
+
+
 instance toString IRCReplies where toString r = printToString r
 instance toString IRCErrors where toString r = printToString r
 
