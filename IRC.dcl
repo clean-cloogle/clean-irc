@@ -27,8 +27,8 @@ from StdOverloaded import class fromInt, class toInt, class toString
 	| OPER String String 
 	| PART [String]
 	| PASS String
-	| PING [String]
-	| PONG [String]
+	| PING String (Maybe String)
+	| PONG String (Maybe String)
 	| PRIVMSG String String
 	| QUIT (Maybe String)
 	| REHASH 

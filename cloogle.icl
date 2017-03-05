@@ -48,7 +48,7 @@ process io chan w
 #! io = io <<< ("Received: " +++ resp +++ "\n")
 # ind = indexOf KEY resp
 | ind > 0
-	# cmd = split " " $ rtrim $ subString (ind + size KEY) (size resp - ind) resp
+	# cmd = split " " $ rtrim $ subString (ind + size KEY) (size resp) resp
 	#! io =  io <<< ("Received command: " +++ printToString cmd +++ "\n")
 	# toSend = case cmd of
 		["stop":_] = Nothing
@@ -57,6 +57,10 @@ process io chan w
 		[c:_] = Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]]
 	| isNothing toSend = (io, chan, w)
 	# (chan, w) = send (map toString $ fromJust toSend) chan w
+	= process io chan w
+| indexOf "PING :" resp > 0
+	# cmd = rtrim $ subString (indexOf "PING :" resp + size "PING :") (size resp) resp
+	# (chan, w) = send [toString $ PONG cmd Nothing] chan w
 	= process io chan w
 = process io chan w
 

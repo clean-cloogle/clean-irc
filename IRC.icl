@@ -38,8 +38,8 @@ instance toString IRCCommands where
 	//OPER String String 
 	//PART [String]
 	//PASS String
-	//PING [String]
-	//PONG [String]
+		PING a mb = join " " ["PING",a:maybeToList mb]
+		PONG a mb = join " " ["PONG",a:maybeToList mb]
 		PRIVMSG dest msg = join " " ["PRIVMSG", dest, ":"+++msg]
 		QUIT msg = join " " ["QUIT":maybeToList msg]
 	//REHASH 
