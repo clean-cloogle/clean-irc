@@ -10,7 +10,7 @@ Start :: [String]
 Start = map toString
 	[NICK "clooglebot"
 	,USER "cloogle" 0 "Cloogle bot"
-	,JOIN $ Right [("#cloogle", Nothing)]
+	,JOIN [("#cloogle", Nothing)]
 	,PRIVMSG "#cloogle" "Hello world"
 	,QUIT Nothing
 	]

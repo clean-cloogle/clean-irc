@@ -1,6 +1,5 @@
 definition module IRC
 
-from Data.Either import :: Either
 from Data.Maybe import :: Maybe
 from StdOverloaded import class fromInt, class toInt, class toString
 
@@ -13,7 +12,7 @@ from StdOverloaded import class fromInt, class toInt, class toString
 	| INFO (Maybe String)
 	| INVITE String String
 	| ISON [String]
-	| JOIN (Either () [(String, Maybe String)])
+	| JOIN [(String, Maybe String)]
 	| KICK String String (Maybe String)
 	| KILL String String
 	| LINKS (Maybe (Maybe String, String))

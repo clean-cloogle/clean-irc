@@ -1,5 +1,6 @@
 implementation module IRC
 
+import StdList
 import GenPrint
 import StdOverloaded
 import Data.Maybe
@@ -21,8 +22,8 @@ instance toString IRCCommands where
 	//INFO (Maybe String)
 	//INVITE String String
 	//ISON [String]
-		JOIN chs = "JOIN " +++ either (const "0")
-			(\c->join ", " [join " " [ch:maybeToList mkey]\\(ch, mkey)<-c]) chs
+		JOIN chs = "JOIN " +++ (if (isEmpty chs) "0"
+			(join ", " [join " " [ch:maybeToList mk]\\(ch, mk)<-chs]))
 	//KICK String String (Maybe String)
 	//KILL String String
 	//LINKS (Maybe (Maybe String, String))
