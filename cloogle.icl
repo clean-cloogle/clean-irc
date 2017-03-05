@@ -52,13 +52,13 @@ process io chan w
 	#! io =  io <<< ("Received command: " +++ printToString cmd +++ "\n")
 	# toSend = case cmd of
 		["stop":_] = Nothing
-		["ping":_] = Just [msg "pong"]
+		["ping":xs] = Just [msg $ "pong " +++ join " " xs]
 		["help"] = Just 
 			[msg "type !help cmd for command specific help"
 			,msg "available commands: help, ping"]
 		["help":c:_] = case c of
-			"help" = Just [msg "I will print help text"] 
-			"ping" = Just [msg "I will reply with pong"] 
+			"help" = Just [msg "help [CMD] - I will print general help or the help of CMD"] 
+			"ping" = Just [msg "ping [TXT] - I will reply with pong and the optionar TXT"] 
 			_ = Just [msg "Unknown command"]
 		[c:_] = Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]]
 	| isNothing toSend = (io, chan, w)
@@ -66,6 +66,7 @@ process io chan w
 	= process io chan w
 | indexOf "PING :" resp > 0
 	# cmd = rtrim $ subString (indexOf "PING :" resp + size "PING :") (size resp) resp
+	#! io <<< (toString $ PONG cmd Nothing) <<< "\n"
 	# (chan, w) = send [toString $ PONG cmd Nothing] chan w
 	= process io chan w
 = process io chan w
