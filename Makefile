@@ -14,7 +14,7 @@ CLMLIBS:=\
 	-I $(CLEAN_HOME)/lib/TCPIP\
 	-I $(CLEAN_HOME)/lib/Dynamics\
 
-BINARIES:=test
+BINARIES:=test cloogle
 
 all: $(BINARIES)
 
