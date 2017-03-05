@@ -1,13 +1,57 @@
 definition module IRC
 
+from Data.Maybe import :: Maybe
 from StdOverloaded import class fromInt, class toInt, class toString
 
-:: IRCCommands = ADMIN | AWAY | CONNECT | DIE | ERROR | INFO | INVITE | ISON |
-	JOIN | KICK | KILL | LINKS | LIST | LUSERS | MODE | MOTD | NAMES | NICK |
-	NJOIN | NOTICE | OPER | PART | PASS | PING | PONG | PRIVMSG | QUIT |
-	REHASH | RESTART | SERVER | SERVICE | SERVLIST | SQUERY | SQUIRT | SQUIT |
-	STATS | SUMMON | TIME | TOPIC | TRACE | USER | USERHOST | USERS | VERSION |
-	WALLOPS | WHO | WHOIS | WHOWAS
+:: IRCCommands
+	= ADMIN (Maybe String)
+	| AWAY String
+	| CONNECT String Int (Maybe String)
+	| DIE 
+	| ERROR String
+	| INFO (Maybe String)
+	| INVITE String String
+	| ISON [String]
+	| JOIN [(String, Maybe String)]
+	| KICK String String (Maybe String)
+	| KILL String String
+	| LINKS (Maybe (Maybe String, String))
+	| LIST [String]
+	| LUSERS (Maybe (String, Maybe String))
+	| MODE String
+	| MOTD (Maybe String)
+	| NAMES [String]
+	| NICK String
+	| NJOIN 
+	| NOTICE 
+	| OPER String String 
+	| PART [String]
+	| PASS String
+	| PING [String]
+	| PONG [String]
+	| PRIVMSG String String
+	| QUIT String
+	| REHASH 
+	| RESTART 
+	| SERVER 
+	| SERVICE 
+	| SERVLIST (Maybe (String, Maybe String))
+	| SQUERY String String
+	| SQUIRT 
+	| SQUIT String String
+	| STATS (Maybe (String, Maybe String))
+	| SUMMON String (Maybe (String, Maybe String))
+	| TIME (Maybe String)
+	| TOPIC String (Maybe String)
+	| TRACE (Maybe String)
+	| USER String String String
+	| USERHOST [String]
+	| USERS (Maybe String)
+	| VERSION (Maybe String)
+	| WALLOPS 
+	| WHO (Maybe String)
+	| WHOIS (Maybe String) [String]
+	| WHOWAS (Maybe String) [String]
 
 :: IRCReplies = RPL_WELCOME | RPL_YOURHOST | RPL_CREATED | RPL_MYINFO |
 	RPL_BOUNCE | RPL_TRACELINK | RPL_TRACECONNECTING | RPL_TRACEHANDSHAKE |

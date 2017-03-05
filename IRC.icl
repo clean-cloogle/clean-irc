@@ -2,9 +2,10 @@ implementation module IRC
 
 import GenPrint
 import StdOverloaded
+import Data.Maybe
 from StdMisc import undef
 
-derive gPrint IRCCommands, IRCReplies, IRCErrors
+derive gPrint IRCCommands, IRCReplies, IRCErrors, (,), Maybe, ()
 
 instance toString IRCCommands where toString r = printToString r
 instance toString IRCReplies where toString r = printToString r
@@ -33,7 +34,7 @@ instance fromInt IRCReplies where
 		219 = RPL_ENDOFSTATS
 		221 = RPL_UMODEIS
 		234 = RPL_SERVLIST
-		234 = RPL_SERVLISTEND
+		235 = RPL_SERVLISTEND
 		242 = RPL_STATSUPTIME
 		243 = RPL_STATSOLINE
 		251 = RPL_LUSERCLIENT
@@ -81,7 +82,7 @@ instance fromInt IRCReplies where
 		365 = RPL_ENDOFLINKS
 		366 = RPL_ENDOFNAMES
 		367 = RPL_BANLIST
-		367 = RPL_ENDOFBANLIST
+		368 = RPL_ENDOFBANLIST
 		369 = RPL_ENDOFWHOWAS
 		371 = RPL_INFO
 		372 = RPL_MOTD
