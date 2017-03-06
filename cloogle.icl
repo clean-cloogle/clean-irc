@@ -9,6 +9,7 @@ import Data.Maybe
 from Data.Func import $
 from Text import class Text(..), instance Text String, instance + String
 
+import Text.URI
 
 import Control.Applicative
 import qualified Control.Monad as CM
@@ -73,8 +74,32 @@ where
 		= (Error $ server_name + " hung up during transmission.", chan, w)
 	= receiveRest {resp & rsp_data=resp.rsp_data + toString (fromJust newresp)} chan w
 
+import StdMisc
+import StdDebug
+
+doRequestL :: HTTPRequest Int *World -> *(MaybeErrorString HTTPResponse, *World)
+doRequestL req 0 w = (Error "Maximal redirect numbe exceeded", w)
+doRequestL req maxRedirects w
+| not (trace_tn $ toString req) = undef
+# (er, w) = doRequest req w
+| isError er = (er, w)
+# resp = fromOk er
+| isMember resp.HTTPResponse.rsp_code [301, 302, 303, 307, 308]
+	= case lookup "Location" resp.HTTPResponse.rsp_headers of
+		Nothing = (Error $ "Redirect given but no Location header", w)
+		Just loc = case parseURI loc of
+			Nothing = (Error $ "Redirect URI couldn't be parsed", w)
+			Just uri = doRequestL {req 
+				& server_name = maybe loc id uri.uriRegName
+				, server_port = maybe 80 id uri.uriPort
+				, req_path = uri.uriPath
+				, req_query = maybe "" ((+++) "?") uri.uriQuery
+				} (maxRedirects-1) w
+= (er, w)
+
 shorten :: String *World -> (String, *World)
 shorten s w 
+# s = if (startsWith "http://" s) s (if (startsWith "https://" s) s ("http://" + s))
 # data = "type=regular&url="+urlEncode s+"&token=a"
 # (mer, w) = doRequest 
 		{ newHTTPRequest
@@ -87,6 +112,18 @@ shorten s w
 			,("Content-Length", toString $ size data)
 			,("Accept", "*/*")]
 		, req_data = data} w
+| isError mer = ("request failed: " + fromError mer, w)
+# resp = fromOk mer
+= (resp.rsp_data, w)
+
+cloogle :: String *World -> (String, *World)
+cloogle data w
+# (mer, w) = doRequestL
+		{ newHTTPRequest
+		& req_path = "/api.php"
+		, req_query = "?str=" + urlEncode data
+		, server_name = "cloogle.org"
+		, server_port = 80} 10 w
 | isError mer = ("request failed: " + fromError mer, w)
 # resp = fromOk mer
 = (resp.rsp_data, w)
@@ -121,17 +158,21 @@ process io chan w
 	# (w, toSend) = case cmd of
 		["stop":_] = (w, Nothing)
 		["ping":xs] = (w, Just [msg $ "pong " +++ join " " xs])
+		["query":xs]
+			# (s, w) = cloogle (join " " xs) w
+			= (w, Just [msg s])
 		["short"] = (w, Just [msg $ "short requires an url argument"])
 		["short":xs]
 			# (s, w) = shorten (join " " xs) w
 			= (w, Just [msg s])
 		["help"] = (w, Just 
 			[msg "type !help cmd for command specific help"
-			,msg "available commands: help, short, ping"])
+			,msg "available commands: help, ping, query, short"])
 		["help":c:_] = (w, case c of
 			"help"  = Just [msg "help  [CMD] - I will print general help or the help of CMD"] 
-			"short" = Just [msg "short  URL  - I will give the url to https://cloo.gl shortening service and post back the result"]
 			"ping"  = Just [msg "ping  [TXT] - I will reply with pong and the optionar TXT"] 
+			"query" = Just [msg "query QUERY - I will send QUERY to cloogle and post the results"]
+			"short" = Just [msg "short  URL  - I will give the url to https://cloo.gl shortening service and post back the result"]
 			_ = Just [msg "Unknown command"])
 		[c:_] = (w, Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]])
 	| isNothing toSend = (io, chan, w)
@@ -144,18 +185,20 @@ process io chan w
 	= process io chan w
 = process io chan w
 
-Start :: *World -> *World
-Start w
-# (io, w) = stdio w
-# (ip, w) = lookupIPAddress SERVER w
-| isNothing ip = abort $ "DNS lookup for " +++ SERVER +++ " failed\n"
-# (Just ip) = ip
-# (rpt,chan,w) = connectTCP_MT TIMEOUT (ip, 6667) w
-| rpt == TR_Expired = abort $ "Connection to " +++ SERVER +++ " timed out\n"
-| rpt == TR_NoSuccess = abort $ "Could not connect to " +++ SERVER +++ "\n"
-# chan = fromJust chan
-# (chan, w) = send commands chan w
-# (io, chan, w) = process io chan w
-# ({sChannel,rChannel}, w) = send [toString $ QUIT Nothing] chan w
-# (_, w) = fclose io w
-= closeChannel sChannel (closeRChannel rChannel w)
+Start :: *World -> (String, *World)
+Start w = cloogle "Monad" w
+//Start :: *World -> *World
+//Start w
+//# (io, w) = stdio w
+//# (ip, w) = lookupIPAddress SERVER w
+//| isNothing ip = abort $ "DNS lookup for " +++ SERVER +++ " failed\n"
+//# (Just ip) = ip
+//# (rpt,chan,w) = connectTCP_MT TIMEOUT (ip, 6667) w
+//| rpt == TR_Expired = abort $ "Connection to " +++ SERVER +++ " timed out\n"
+//| rpt == TR_NoSuccess = abort $ "Could not connect to " +++ SERVER +++ "\n"
+//# chan = fromJust chan
+//# (chan, w) = send commands chan w
+//# (io, chan, w) = process io chan w
+//# ({sChannel,rChannel}, w) = send [toString $ QUIT Nothing] chan w
+//# (_, w) = fclose io w
+//= closeChannel sChannel (closeRChannel rChannel w)
