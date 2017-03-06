@@ -13,6 +13,7 @@ CLMLIBS:=\
 	-I $(CLEAN_HOME)/lib/Generics\
 	-I $(CLEAN_HOME)/lib/TCPIP\
 	-I $(CLEAN_HOME)/lib/Dynamics\
+	-I ./cloogle-sub/backend
 
 BINARIES:=test cloogle
 

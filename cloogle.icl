@@ -1,5 +1,6 @@
 module cloogle
 
+import Cloogle
 import GenPrint
 import IRC
 import StdEnv
@@ -8,6 +9,8 @@ import Data.Functor
 import Data.Maybe
 from Data.Func import $
 from Text import class Text(..), instance Text String, instance + String
+
+import Text.JSON
 
 import Text.URI
 
@@ -122,11 +125,44 @@ cloogle data w
 		{ newHTTPRequest
 		& req_path = "/api.php"
 		, req_query = "?str=" + urlEncode data
+		, req_headers = 'DM'.fromList [("User-Agent", "cloogle-irc")]
 		, server_name = "cloogle.org"
 		, server_port = 80} 10 w
 | isError mer = ("request failed: " + fromError mer, w)
 # resp = fromOk mer
-= (resp.rsp_data, w)
+= case fromJSON $ fromString resp.HTTPResponse.rsp_data of
+	Nothing = ("couldn't parse json", w)
+	Just clr = ("Results for " + data + " -- https://cloogle.org/#" + urlEncode data + "\n" +
+			processResults clr, w)
+	where
+		processResults :: Response -> String
+		processResults resp
+		| resp.return > 127 = "Failed: return code: " + toString resp.return + ", " + resp.msg
+		= join "\n" $ map processResult $ take 3 resp.data
+		
+		processResult :: Result -> String
+		processResult (FunctionResult (br, {func}))
+			= "Function in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ func
+		processResult (TypeResult (br, {type}))
+			= "Type in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ limitResults type
+		processResult (ClassResult (br, {class_name,class_funs}))
+			= "Class in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ class_name +++ " with "
+				+++ toString (length class_funs) +++ " class functions"
+		processResult (MacroResult (br, {macro_name}))
+			= "Macro in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ macro_name
+		processResult (ModuleResult (br, _))
+			= "Module in " +++ br.library +++ ": " +++ br.modul
+
+		limitResults :: String -> String
+		limitResults s
+		# lines = split "\n" s
+		| length lines > 4 = limitResults (join "\n" (take 3 lines) + "\n...")
+		= join "\n" (map maxWidth lines)
+		
+		maxWidth :: String -> String
+		maxWidth s
+		| size s > 80 = subString 0 77 s + "..."
+		= s
 
 send :: [String] TCP_DuplexChannel *World -> (TCP_DuplexChannel, *World)
 send [] chan w = (chan, w)
@@ -160,7 +196,7 @@ process io chan w
 		["ping":xs] = (w, Just [msg $ "pong " +++ join " " xs])
 		["query":xs]
 			# (s, w) = cloogle (join " " xs) w
-			= (w, Just [msg s])
+			= (w, Just $ map msg $ split "\n" s)
 		["short"] = (w, Just [msg $ "short requires an url argument"])
 		["short":xs]
 			# (s, w) = shorten (join " " xs) w
@@ -185,20 +221,18 @@ process io chan w
 	= process io chan w
 = process io chan w
 
-Start :: *World -> (String, *World)
-Start w = cloogle "Monad" w
-//Start :: *World -> *World
-//Start w
-//# (io, w) = stdio w
-//# (ip, w) = lookupIPAddress SERVER w
-//| isNothing ip = abort $ "DNS lookup for " +++ SERVER +++ " failed\n"
-//# (Just ip) = ip
-//# (rpt,chan,w) = connectTCP_MT TIMEOUT (ip, 6667) w
-//| rpt == TR_Expired = abort $ "Connection to " +++ SERVER +++ " timed out\n"
-//| rpt == TR_NoSuccess = abort $ "Could not connect to " +++ SERVER +++ "\n"
-//# chan = fromJust chan
-//# (chan, w) = send commands chan w
-//# (io, chan, w) = process io chan w
-//# ({sChannel,rChannel}, w) = send [toString $ QUIT Nothing] chan w
-//# (_, w) = fclose io w
-//= closeChannel sChannel (closeRChannel rChannel w)
+Start :: *World -> *World
+Start w
+# (io, w) = stdio w
+# (ip, w) = lookupIPAddress SERVER w
+| isNothing ip = abort $ "DNS lookup for " +++ SERVER +++ " failed\n"
+# (Just ip) = ip
+# (rpt,chan,w) = connectTCP_MT TIMEOUT (ip, 6667) w
+| rpt == TR_Expired = abort $ "Connection to " +++ SERVER +++ " timed out\n"
+| rpt == TR_NoSuccess = abort $ "Could not connect to " +++ SERVER +++ "\n"
+# chan = fromJust chan
+# (chan, w) = send commands chan w
+# (io, chan, w) = process io chan w
+# ({sChannel,rChannel}, w) = send [toString $ QUIT Nothing] chan w
+# (_, w) = fclose io w
+= closeChannel sChannel (closeRChannel rChannel w)
