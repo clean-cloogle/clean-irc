@@ -6,7 +6,7 @@ from StdOverloaded import class fromInt, class toInt, class toString, class from
 
 :: IRCMessage =
 	{ irc_prefix :: Maybe (Either String IRCUser)
-	, irc_command :: IRCCommands}
+	, irc_command :: IRCCommand}
 
 :: IRCUser = 
 	{ irc_nick :: String
@@ -14,14 +14,14 @@ from StdOverloaded import class fromInt, class toInt, class toString, class from
 	, irc_host :: Maybe String
 	}
 
-instance toString IRCCommands, IRCReplies, IRCErrors, IRCMessage, IRCUser
+instance toString IRCCommand, IRCReplies, IRCErrors, IRCMessage, IRCUser
 instance fromInt IRCReplies, IRCErrors
 instance toInt IRCReplies, IRCErrors
 
-:: IRCCommands
+:: IRCCommand
 	= ADMIN (Maybe String)
 	| AWAY String
-	| CONNECT String Int (Maybe String)
+	| CONNECT String (Maybe (Int, Maybe String))
 	| DIE 
 	| ERROR String
 	| INFO (Maybe String)

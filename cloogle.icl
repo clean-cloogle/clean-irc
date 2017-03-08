@@ -184,7 +184,7 @@ recv {sChannel,rChannel} w
 | rpt == TR_NoSuccess || isNothing resp = abort "Halp?\n"
 = (toString <$> resp, {sChannel=sChannel,rChannel=rChannel}, w)
 
-msg :: (String -> IRCCommands)
+msg :: (String -> IRCCommand)
 msg = PRIVMSG "#cloogle"
 
 process :: *File TCP_DuplexChannel *World -> (*File, TCP_DuplexChannel, *World)

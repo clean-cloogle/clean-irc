@@ -11,6 +11,7 @@ import StdChar
 
 import Text.Parsers.Simple.Core
 import Text.Parsers.Simple.Chars
+import Data.Tuple
 import Control.Monad
 import Control.Applicative
 from Data.Functor import <$>
@@ -22,21 +23,11 @@ from StdMisc import undef
 
 jon :== 'Text'.join
 
-derive gPrint IRCCommands, IRCReplies, IRCErrors, (,), Maybe, (), Either
+derive gPrint IRCCommand, IRCReplies, IRCErrors, (,), Maybe, (), Either
 
-:: IRCMessage =
-	{ irc_prefix :: Maybe (Either String IRCUser)
-	, irc_command :: IRCCommands
-	}
-
-:: IRCUser = 
-	{ irc_nick :: String
-	, irc_user :: Maybe String
-	, irc_host :: Maybe String
-	}
-
-//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 PRIVMSG #cloogle :!query ^_^\r\n"
-Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
+//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
+//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY test\r\n"
+Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY test with spaces\r\n"
 
 (<+) infixr 5 :: a b -> String | toString a & toString b
 (<+) a b = toString a +++ toString b
@@ -49,13 +40,6 @@ parseMessage = optional (parseEither parseHost parseUser) <* spaceParser
 	>>= \mprefix->parseCommand
 	<* pToken '\r' <* pToken '\n' 
 	>>= \cmd->pure {IRCMessage | irc_prefix=mprefix, irc_command=cmd}
-
-pCommand :: String -> Parser Char [Char]
-pCommand s = pList (map pToken $ fromString s) <* spaceParser
-
-parseCommand :: Parser Char IRCCommands
-parseCommand = pFail//pCommand "QUIT" >>| QUIT <$> optional (pure "")
-
 
 spaceParser :: Parser Char [Char]
 spaceParser = pMany $ pToken ' '
@@ -73,7 +57,7 @@ parseUser = pToken ':' >>| parseNick
 		>>= \mhost->pure {IRCUser | irc_nick=nick, irc_user=muser, irc_host=mhost}
 
 parseUsr :: Parser Char String
-parseUsr = toString <$> pSome (pSatisfy (not o flip isMember [' ', '\x00', '\x0d', '\x0a', '@']))
+parseUsr = toString <$> pSome (pNoneOf [' ', '@':illegal])
 
 parseNick :: Parser Char String
 parseNick = pAlpha >>= \c->pMany (pAlpha <|> pDigit <|> pSpecial)
@@ -90,9 +74,6 @@ parseHost = parseName
 		parseName :: Parser Char String
 		parseName = toString <$> pSome (pAlpha <|> pDigit <|> pToken '.')
 
-IRCCommandParser :: Parser Char IRCCommands
-IRCCommandParser = pFail
-
 instance toString IRCMessage where
 	toString m = maybe "" (\s->either id ((<+) ":") s <+ " ") m.irc_prefix <+ m.irc_command
 
@@ -100,11 +81,68 @@ instance toString IRCUser where
 	toString m = m.irc_nick <+ maybe "" ((<+) "!") m.irc_user
 		<+ maybe "" ((<+) "@") m.irc_host
 
-instance toString IRCCommands where
+cons :: a [a] -> [a]
+cons a as = [a:as]
+
+pMiddle :: Parser Char String
+pMiddle = fmap toString $
+	spaceParser >>| pToken ':' >>| pMany (pNoneOf illegal)
+
+pTrailing :: Parser Char String
+pTrailing = fmap toString $ 
+	spaceParser >>| liftM2 cons (pNotSatisfy ((==)':')) (pMany $ pNoneOf [' ':illegal])
+
+pParam :: Parser Char String
+pParam = pMiddle <|> pTrailing
+
+pNoneOf :: [a] -> Parser a a | Eq a
+pNoneOf l = pSatisfy (not o flip isMember l)
+
+pNotSatisfy :: (a -> Bool) -> Parser a a | Eq a
+pNotSatisfy f = pSatisfy (not o f)
+
+pInt :: Parser Char Int
+pInt = toInt o toString <$> (spaceParser >>| pSome pDigit)
+
+illegal :: [Char]
+illegal = ['\x00','\r','\n']
+
+pCommand :: String -> Parser Char [Char]
+pCommand s = pList (map pToken $ fromString s)
+
+pCommand0 :: String IRCCommand -> Parser Char IRCCommand
+pCommand0 s c = pCommand s >>| pure c
+
+pCommand1 :: String (Parser Char a) (a -> IRCCommand) -> Parser Char IRCCommand
+pCommand1 s p c = pCommand s >>| liftM c p
+
+pCommand2 :: String (Parser Char a) (Parser Char b) (a b -> IRCCommand) -> Parser Char IRCCommand
+pCommand2 s p q c = pCommand s >>| liftM2 c p q
+
+pCommand3 :: String (Parser Char a) (Parser Char b) (Parser Char c) (a b c -> IRCCommand) -> Parser Char IRCCommand
+pCommand3 s p q r c = pCommand s >>| liftM3 c p q r
+
+parseCommand :: Parser Char IRCCommand
+parseCommand = 
+	    pCommand1 "ADMIN" (optional pMiddle) ADMIN
+	<|> pCommand1 "AWAY" pParam AWAY
+	<|> pCommand2 "CONNECT" pParam (optional $ liftM2 tuple pInt (optional pParam)) CONNECT
+	<|> pCommand0 "DIE" DIE
+	<|> pCommand1 "ERROR" pParam ERROR
+	<|> pCommand1 "INFO" (optional pParam) INFO
+	<|> pCommand2 "INVITE" pMiddle pMiddle INVITE
+	<|> pCommand1 "ISON" (pSome pMiddle) ISON
+	<|> pCommand1 "JOIN" (pSepBy (liftM2 tuple pMiddle $ optional pMiddle) pComma) JOIN
+	<|> pCommand3 "KICK" pMiddle pMiddle (optional pParam) KICK
+	<|> pCommand2 "KILL" pMiddle pParam KILL
+	<|> pCommand1 "LINKS" (optional (liftM2 tuple (optional pMiddle) pMiddle)) LINKS
+	//<|> pCommand "QUIT" (optional pParam))
+
+instance toString IRCCommand where
 	toString r = flip (+++) "\r\n" case r of
 	//ADMIN (Maybe String)
 	//AWAY String
-	//CONNECT String Int (Maybe String)
+	//CONNECT String (Maybe (Int, Maybe String))
 	//DIE 
 	//ERROR String
 	//INFO (Maybe String)
