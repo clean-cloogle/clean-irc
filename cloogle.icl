@@ -142,14 +142,14 @@ cloogle data w
 		
 		processResult :: Result -> String
 		processResult (FunctionResult (br, {func}))
-			= "Function in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ func
+			= "Function in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ func
 		processResult (TypeResult (br, {type}))
-			= "Type in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ limitResults type
+			= "Type in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ limitResults type
 		processResult (ClassResult (br, {class_name,class_funs}))
-			= "Class in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ class_name +++ " with "
+			= "Class in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ class_name +++ " with "
 				+++ toString (length class_funs) +++ " class functions"
 		processResult (MacroResult (br, {macro_name}))
-			= "Macro in " +++ br.library +++ ": " +++ br.modul +++ " - " +++ macro_name
+			= "Macro in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ macro_name
 		processResult (ModuleResult (br, _))
 			= "Module in " +++ br.library +++ ": " +++ br.modul
 
@@ -167,9 +167,15 @@ cloogle data w
 send :: [String] TCP_DuplexChannel *World -> (TCP_DuplexChannel, *World)
 send [] chan w = (chan, w)
 send [msg:msgs] {sChannel,rChannel} w
+# (_, w) = sleep 250000 w
 # (rpt,i,sChannel,w) = send_MT TIMEOUT (toByteSeq msg) sChannel w
 | rpt <> TR_Success = abort "Could not send request\n"
 = send msgs {sChannel=sChannel,rChannel=rChannel} w
+	where
+		sleep :: !Int !*World -> (!Int, *World)
+		sleep i w = code {
+				ccall usleep "I:I:A"
+			}
 
 recv :: TCP_DuplexChannel *World -> (Maybe String, TCP_DuplexChannel, *World)
 recv {sChannel,rChannel} w

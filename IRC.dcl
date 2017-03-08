@@ -1,7 +1,22 @@
 definition module IRC
 
 from Data.Maybe import :: Maybe
-from StdOverloaded import class fromInt, class toInt, class toString
+from Data.Either import :: Either
+from StdOverloaded import class fromInt, class toInt, class toString, class fromString
+
+:: IRCMessage =
+	{ irc_prefix :: Maybe (Either String IRCUser)
+	, irc_command :: IRCCommands}
+
+:: IRCUser = 
+	{ irc_nick :: String
+	, irc_user :: Maybe String
+	, irc_host :: Maybe String
+	}
+
+instance toString IRCCommands, IRCReplies, IRCErrors, IRCMessage, IRCUser
+instance fromInt IRCReplies, IRCErrors
+instance toInt IRCReplies, IRCErrors
 
 :: IRCCommands
 	= ADMIN (Maybe String)
@@ -90,7 +105,3 @@ from StdOverloaded import class fromInt, class toInt, class toString
 	ERR_NOPRIVILEGES | ERR_CHANOPRIVSNEEDED | ERR_CANTKILLSERVER |
 	ERR_RESTRICTED | ERR_UNIQOPPRIVSNEEDED | ERR_NOOPERHOST |
 	ERR_UMODEUNKNOWNFLAG | ERR_USERSDONTMATCH
-
-instance toString IRCCommands, IRCReplies, IRCErrors
-instance fromInt IRCReplies, IRCErrors
-instance toInt IRCReplies, IRCErrors

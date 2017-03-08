@@ -7,10 +7,98 @@ import Data.Maybe
 import Data.Either
 import StdFunc
 import StdString
-from Text import class Text(..), instance Text String
+import StdChar
+
+import Text.Parsers.Simple.Core
+import Text.Parsers.Simple.Chars
+import Control.Monad
+import Control.Applicative
+from Data.Functor import <$>
+
+from Data.Func import $
+from Text import class Text(concat), instance Text String
+import qualified Text
 from StdMisc import undef
 
+jon :== 'Text'.join
+
 derive gPrint IRCCommands, IRCReplies, IRCErrors, (,), Maybe, (), Either
+
+:: IRCMessage =
+	{ irc_prefix :: Maybe (Either String IRCUser)
+	, irc_command :: IRCCommands
+	}
+
+:: IRCUser = 
+	{ irc_nick :: String
+	, irc_user :: Maybe String
+	, irc_host :: Maybe String
+	}
+
+//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 PRIVMSG #cloogle :!query ^_^\r\n"
+Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
+
+(<+) infixr 5 :: a b -> String | toString a & toString b
+(<+) a b = toString a +++ toString b
+
+parseIRCMessage :: (String -> Either [Error] IRCMessage)
+parseIRCMessage = parse parseMessage o fromString
+
+parseMessage :: Parser Char IRCMessage
+parseMessage = optional (parseEither parseHost parseUser) <* spaceParser
+	>>= \mprefix->parseCommand
+	<* pToken '\r' <* pToken '\n' 
+	>>= \cmd->pure {IRCMessage | irc_prefix=mprefix, irc_command=cmd}
+
+pCommand :: String -> Parser Char [Char]
+pCommand s = pList (map pToken $ fromString s) <* spaceParser
+
+parseCommand :: Parser Char IRCCommands
+parseCommand = pFail//pCommand "QUIT" >>| QUIT <$> optional (pure "")
+
+
+spaceParser :: Parser Char [Char]
+spaceParser = pMany $ pToken ' '
+
+parseServer :: Parser Char String
+parseServer = pFail
+
+parseEither :: (Parser a b) (Parser a c) -> Parser a (Either b c)
+parseEither p q = Left <$> p <|> Right <$> q
+
+parseUser :: Parser Char IRCUser
+parseUser = pToken ':' >>| parseNick
+		>>= \nick->optional (pToken '!' >>| parseUsr)
+		>>= \muser->optional (pToken '@' >>| parseHost)
+		>>= \mhost->pure {IRCUser | irc_nick=nick, irc_user=muser, irc_host=mhost}
+
+parseUsr :: Parser Char String
+parseUsr = toString <$> pSome (pSatisfy (not o flip isMember [' ', '\x00', '\x0d', '\x0a', '@']))
+
+parseNick :: Parser Char String
+parseNick = pAlpha >>= \c->pMany (pAlpha <|> pDigit <|> pSpecial)
+	>>= \cs->pure (toString [c:cs])
+
+pSpecial :: Parser Char Char
+pSpecial = pOneOf ['-', '[', ']', '\\', '\`', '^', '{', '}']
+
+parseHost :: Parser Char String
+parseHost = parseName
+	>>= \nm->pMany (pToken '.' >>| parseName)
+	>>= \nms->pure (concat [nm:nms])
+	where
+		parseName :: Parser Char String
+		parseName = toString <$> pSome (pAlpha <|> pDigit <|> pToken '.')
+
+IRCCommandParser :: Parser Char IRCCommands
+IRCCommandParser = pFail
+
+instance toString IRCMessage where
+	toString m = maybe "" (\s->either id ((<+) ":") s <+ " ") m.irc_prefix <+ m.irc_command
+
+instance toString IRCUser where
+	toString m = m.irc_nick <+ maybe "" ((<+) "!") m.irc_user
+		<+ maybe "" ((<+) "@") m.irc_host
 
 instance toString IRCCommands where
 	toString r = flip (+++) "\r\n" case r of
@@ -23,7 +111,7 @@ instance toString IRCCommands where
 	//INVITE String String
 	//ISON [String]
 		JOIN chs = "JOIN " +++ (if (isEmpty chs) "0"
-			(join ", " [join " " [ch:maybeToList mk]\\(ch, mk)<-chs]))
+			(jon ", " [jon " " [ch:maybeToList mk]\\(ch, mk)<-chs]))
 	//KICK String String (Maybe String)
 	//KILL String String
 	//LINKS (Maybe (Maybe String, String))
@@ -32,16 +120,16 @@ instance toString IRCCommands where
 	//MODE String
 	//MOTD (Maybe String)
 	//NAMES [String]
-		NICK n = join " " ["NICK", n]
+		NICK n = jon " " ["NICK", n]
 	//NJOIN 
 	//NOTICE String String
 	//OPER String String 
 	//PART [String]
 	//PASS String
-		PING a mb = join " " ["PING",a:maybeToList mb]
-		PONG a mb = join " " ["PONG",a:maybeToList mb]
-		PRIVMSG dest msg = join " " ["PRIVMSG", dest, ":"+++msg]
-		QUIT msg = join " " ["QUIT":maybeToList msg]
+		PING a mb = jon " " ["PING",a:maybeToList mb]
+		PONG a mb = jon " " ["PONG",a:maybeToList mb]
+		PRIVMSG dest msg = jon " " ["PRIVMSG", dest, ":"+++msg]
+		QUIT msg = jon " " ["QUIT":maybeToList msg]
 	//REHASH 
 	//RESTART 
 	//SERVER 
@@ -55,7 +143,7 @@ instance toString IRCCommands where
 	//TIME (Maybe String)
 	//TOPIC String (Maybe String)
 	//TRACE (Maybe String)
-		USER login mode rn = join " " ["USER", login, toString mode, "*", ":"+++rn]
+		USER login mode rn = jon " " ["USER", login, toString mode, "*", ":"+++rn]
 	//USERHOST [String]
 	//USERS (Maybe String)
 	//VERSION (Maybe String)
