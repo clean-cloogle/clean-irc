@@ -122,6 +122,15 @@ pCommand2 s p q c = pCommand s >>| liftM2 c p q
 pCommand3 :: String (Parser Char a) (Parser Char b) (Parser Char c) (a b c -> IRCCommand) -> Parser Char IRCCommand
 pCommand3 s p q r c = pCommand s >>| liftM3 c p q r
 
+pCommand4 :: String (Parser Char a) (Parser Char b) (Parser Char c) (Parser Char d) (a b c d -> IRCCommand) -> Parser Char IRCCommand
+pCommand4 s p q r t c = pCommand s >>| liftM4 c p q r t
+
+pCommand5 :: String (Parser Char a) (Parser Char b) (Parser Char c) (Parser Char d) (Parser Char e) (a b c d e -> IRCCommand) -> Parser Char IRCCommand
+pCommand5 s p q r t u c = pCommand s >>| liftM5 c p q r t u
+
+pMode :: Parser Char String
+pMode = toString <$> pSome (pOneOf ['+','-','o','p','i','t','n','b','v','w','s'])
+
 parseCommand :: Parser Char IRCCommand
 parseCommand = 
 	    pCommand1 "ADMIN" (optional pMiddle) ADMIN
@@ -135,8 +144,42 @@ parseCommand =
 	<|> pCommand1 "JOIN" (pSepBy (liftM2 tuple pMiddle $ optional pMiddle) pComma) JOIN
 	<|> pCommand3 "KICK" pMiddle pMiddle (optional pParam) KICK
 	<|> pCommand2 "KILL" pMiddle pParam KILL
-	<|> pCommand1 "LINKS" (optional (liftM2 tuple (optional pMiddle) pMiddle)) LINKS
-	//<|> pCommand "QUIT" (optional pParam))
+	<|> pCommand1 "LINKS" (optional $ liftM2 tuple (optional pMiddle) pMiddle) LINKS
+	<|> pCommand1 "LIST" (optional $ liftM2 tuple (pSepBy pMiddle pComma) $ optional pMiddle) LIST
+	<|> pCommand1 "LUSERS" (optional $ liftM2 tuple pMiddle $ optional pMiddle) LUSERS
+	<|> pCommand5 "MODE" pMiddle pMode (optional pMiddle) (optional pMiddle) (optional pMiddle) MODE
+	<|> pCommand1 "MOTD" (optional pMiddle) MOTD
+	<|> pCommand1 "NAMES" (pSepBy pMiddle pComma) NAMES
+	//NJOIN 
+	//NOTICE String String
+	//OPER String String 
+	//PART [String]
+	//PASS String
+	<|> pCommand2 "PING" pMiddle (optional pMiddle) PING
+	<|> pCommand2 "PONG" pMiddle (optional pMiddle) PONG
+	<|> pCommand2 "PRIVMSG" (pSepBy pMiddle pComma) pParam PRIVMSG
+	<|> pCommand1 "QUIT" (optional pParam) QUIT
+	//REHASH 
+	//RESTART 
+	//SERVER 
+	//SERVICE String String String String
+	//SERVLIST (Maybe (String, Maybe String))
+	//SQUERY String String
+	//SQUIRT 
+	//SQUIT String String
+	//STATS (Maybe (String, Maybe String))
+	//SUMMON String (Maybe (String, Maybe String))
+	//TIME (Maybe String)
+	//TOPIC String (Maybe String)
+	//TRACE (Maybe String)
+	<|> pCommand3 "USER" pMiddle pMiddle (pMiddle >>| pParam) USER
+	//USERHOST [String]
+	//USERS (Maybe String)
+	//VERSION (Maybe String)
+	//WALLOPS String
+	//WHO (Maybe String)
+	//WHOIS (Maybe String) [String]
+	//WHOWAS (Maybe String) [String]
 
 instance toString IRCCommand where
 	toString r = flip (+++) "\r\n" case r of
@@ -153,12 +196,12 @@ instance toString IRCCommand where
 	//KICK String String (Maybe String)
 	//KILL String String
 	//LINKS (Maybe (Maybe String, String))
-	//LIST [String]
+	//LIST (Maybe ([String], Maybe String))
 	//LUSERS (Maybe (String, Maybe String))
-	//MODE String
+	//MODE String String (Maybe String) (Maybe String) (Maybe String)
 	//MOTD (Maybe String)
 	//NAMES [String]
-		NICK n = jon " " ["NICK", n]
+		NICK n ms = jon " " ["NICK", n]
 	//NJOIN 
 	//NOTICE String String
 	//OPER String String 
@@ -166,7 +209,7 @@ instance toString IRCCommand where
 	//PASS String
 		PING a mb = jon " " ["PING",a:maybeToList mb]
 		PONG a mb = jon " " ["PONG",a:maybeToList mb]
-		PRIVMSG dest msg = jon " " ["PRIVMSG", dest, ":"+++msg]
+		PRIVMSG dest msg = undef //jon " " ["PRIVMSG", dest, ":"+++msg]
 		QUIT msg = jon " " ["QUIT":maybeToList msg]
 	//REHASH 
 	//RESTART 
@@ -181,7 +224,7 @@ instance toString IRCCommand where
 	//TIME (Maybe String)
 	//TOPIC String (Maybe String)
 	//TRACE (Maybe String)
-		USER login mode rn = jon " " ["USER", login, toString mode, "*", ":"+++rn]
+		USER login mode rn = jon " " ["USER", login, mode, "*", ":"+++rn]
 	//USERHOST [String]
 	//USERS (Maybe String)
 	//VERSION (Maybe String)

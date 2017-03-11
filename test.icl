@@ -8,9 +8,9 @@ import IRC
 
 Start :: [String]
 Start = map toString
-	[NICK "clooglebot"
-	,USER "cloogle" 0 "Cloogle bot"
+	[NICK "clooglebot" Nothing
+	,USER "cloogle" "0" "Cloogle bot"
 	,JOIN [("#cloogle", Nothing)]
-	,PRIVMSG "#cloogle" "Hello world"
+	,PRIVMSG ["#cloogle"] "Hello world"
 	,QUIT Nothing
 	]

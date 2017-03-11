@@ -29,8 +29,8 @@ import TCPIP
 
 commands :: [String]
 commands = map toString
-	[NICK "clooglebot"
-	,USER "cloogle" 0 "Cloogle bot"
+	[NICK "clooglebot" Nothing
+	,USER "cloogle" "0" "Cloogle bot"
 	,JOIN [("#cloogle", Nothing)]
 	]
 
@@ -132,7 +132,7 @@ cloogle data w
 # resp = fromOk mer
 = case fromJSON $ fromString resp.HTTPResponse.rsp_data of
 	Nothing = ("couldn't parse json", w)
-	Just clr = ("Results for " + data + " -- https://cloogle.org/#" + urlEncode data + "\n" +
+	Just clr = ("Results for " + data + " -- https://cloogle.org/#" + replaceSubString "+" "%20" (urlEncode data) + "\n" +
 			processResults clr, w)
 	where
 		processResults :: Response -> String
@@ -185,7 +185,7 @@ recv {sChannel,rChannel} w
 = (toString <$> resp, {sChannel=sChannel,rChannel=rChannel}, w)
 
 msg :: (String -> IRCCommand)
-msg = PRIVMSG "#cloogle"
+msg = PRIVMSG ["#cloogle"]
 
 process :: *File TCP_DuplexChannel *World -> (*File, TCP_DuplexChannel, *World)
 process io chan w 

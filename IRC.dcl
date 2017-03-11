@@ -31,12 +31,12 @@ instance toInt IRCReplies, IRCErrors
 	| KICK String String (Maybe String)
 	| KILL String String
 	| LINKS (Maybe (Maybe String, String))
-	| LIST [String]
+	| LIST (Maybe ([String], Maybe String))
 	| LUSERS (Maybe (String, Maybe String))
-	| MODE String
+	| MODE String String (Maybe String) (Maybe String) (Maybe String)
 	| MOTD (Maybe String)
 	| NAMES [String]
-	| NICK String
+	| NICK String (Maybe String)
 	| NJOIN 
 	| NOTICE String String
 	| OPER String String 
@@ -44,7 +44,7 @@ instance toInt IRCReplies, IRCErrors
 	| PASS String
 	| PING String (Maybe String)
 	| PONG String (Maybe String)
-	| PRIVMSG String String
+	| PRIVMSG [String] String
 	| QUIT (Maybe String)
 	| REHASH 
 	| RESTART 
@@ -59,7 +59,7 @@ instance toInt IRCReplies, IRCErrors
 	| TIME (Maybe String)
 	| TOPIC String (Maybe String)
 	| TRACE (Maybe String)
-	| USER String Int String
+	| USER String String String
 	| USERHOST [String]
 	| USERS (Maybe String)
 	| VERSION (Maybe String)
