@@ -1,8 +1,10 @@
 definition module IRC
 
+import IRCBot
 from Data.Maybe import :: Maybe
 from Data.Either import :: Either
 from StdOverloaded import class fromInt, class toInt, class toString, class fromString
+from Text.Parsers.Simple.Core import :: Error
 
 :: IRCMessage =
 	{ irc_prefix :: Maybe (Either String IRCUser)
@@ -13,6 +15,8 @@ from StdOverloaded import class fromInt, class toInt, class toString, class from
 	, irc_user :: Maybe String
 	, irc_host :: Maybe String
 	}
+
+parseIRCMessage :: (String -> Either [Error] IRCMessage)
 
 instance toString IRCCommand, IRCReplies, IRCErrors, IRCMessage, IRCUser
 instance fromInt IRCReplies, IRCErrors

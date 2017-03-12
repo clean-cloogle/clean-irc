@@ -8,6 +8,7 @@ import Data.Either
 import StdFunc
 import StdString
 import StdChar
+import StdBool
 
 import Text.Parsers.Simple.Core
 import Text.Parsers.Simple.Chars
@@ -17,7 +18,7 @@ import Control.Applicative
 from Data.Functor import <$>
 
 from Data.Func import $
-from Text import class Text(concat), instance Text String
+from Text import class Text(indexOf,concat), instance Text String
 import qualified Text
 from StdMisc import undef
 
@@ -27,7 +28,9 @@ derive gPrint IRCCommand, IRCReplies, IRCErrors, (,), Maybe, (), Either
 
 //Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
 //Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY test\r\n"
-Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY test with spaces\r\n"
+//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY :test with spaces\r\n"
+//Start = runParser parseMessage $ fromString ":cherryh.freenode.net NOTICE * :*** Found your hostname\r\n"
+Start = runParser parseMessage $ fromString ":cherryh.freenode.net QUIT\r\n"
 
 (<+) infixr 5 :: a b -> String | toString a & toString b
 (<+) a b = toString a +++ toString b
@@ -67,7 +70,7 @@ pSpecial :: Parser Char Char
 pSpecial = pOneOf ['-', '[', ']', '\\', '\`', '^', '{', '}']
 
 parseHost :: Parser Char String
-parseHost = parseName
+parseHost = pToken ':' >>| parseName
 	>>= \nm->pMany (pToken '.' >>| parseName)
 	>>= \nms->pure (concat [nm:nms])
 	where
@@ -86,11 +89,11 @@ cons a as = [a:as]
 
 pMiddle :: Parser Char String
 pMiddle = fmap toString $
-	spaceParser >>| pToken ':' >>| pMany (pNoneOf illegal)
+	spaceParser >>| liftM2 cons (pNotSatisfy ((==)':')) (pMany $ pNoneOf [' ':illegal])
 
 pTrailing :: Parser Char String
 pTrailing = fmap toString $ 
-	spaceParser >>| liftM2 cons (pNotSatisfy ((==)':')) (pMany $ pNoneOf [' ':illegal])
+	spaceParser >>| pToken ':' >>| pMany (pNoneOf illegal)
 
 pParam :: Parser Char String
 pParam = pMiddle <|> pTrailing
@@ -151,7 +154,7 @@ parseCommand =
 	<|> pCommand1 "MOTD" (optional pMiddle) MOTD
 	<|> pCommand1 "NAMES" (pSepBy pMiddle pComma) NAMES
 	//NJOIN 
-	//NOTICE String String
+	<|> pCommand2 "NOTICE" pParam pParam NOTICE
 	//OPER String String 
 	//PART [String]
 	//PASS String
@@ -182,8 +185,11 @@ parseCommand =
 	//WHOWAS (Maybe String) [String]
 
 instance toString IRCCommand where
-	toString r = flip (+++) "\r\n" case r of
-	//ADMIN (Maybe String)
+	toString r = jon " " (print r) +++ "\r\n"
+
+print :: IRCCommand -> [String]
+print r = case r of
+		ADMIN mm = ["ADMIN":maybeToList mm]
 	//AWAY String
 	//CONNECT String (Maybe (Int, Maybe String))
 	//DIE 
@@ -191,8 +197,8 @@ instance toString IRCCommand where
 	//INFO (Maybe String)
 	//INVITE String String
 	//ISON [String]
-		JOIN chs = "JOIN " +++ (if (isEmpty chs) "0"
-			(jon ", " [jon " " [ch:maybeToList mk]\\(ch, mk)<-chs]))
+		JOIN chs = ["JOIN",if (isEmpty chs) "0"
+			(jon ", " [jon " " [ch:maybeToList mk]\\(ch, mk)<-chs])]
 	//KICK String String (Maybe String)
 	//KILL String String
 	//LINKS (Maybe (Maybe String, String))
@@ -201,16 +207,16 @@ instance toString IRCCommand where
 	//MODE String String (Maybe String) (Maybe String) (Maybe String)
 	//MOTD (Maybe String)
 	//NAMES [String]
-		NICK n ms = jon " " ["NICK", n]
+		NICK n ms = ["NICK", n]
 	//NJOIN 
 	//NOTICE String String
 	//OPER String String 
 	//PART [String]
 	//PASS String
-		PING a mb = jon " " ["PING",a:maybeToList mb]
-		PONG a mb = jon " " ["PONG",a:maybeToList mb]
-		PRIVMSG dest msg = undef //jon " " ["PRIVMSG", dest, ":"+++msg]
-		QUIT msg = jon " " ["QUIT":maybeToList msg]
+		PING a mb = ["PING",a:maybeToList mb]
+		PONG a mb = ["PONG",a:maybeToList mb]
+		PRIVMSG dest msg = ["PRIVMSG",jon "," dest,formatMSG msg]
+		QUIT msg = ["QUIT":maybeToList msg]
 	//REHASH 
 	//RESTART 
 	//SERVER 
@@ -224,7 +230,7 @@ instance toString IRCCommand where
 	//TIME (Maybe String)
 	//TOPIC String (Maybe String)
 	//TRACE (Maybe String)
-		USER login mode rn = jon " " ["USER", login, mode, "*", ":"+++rn]
+		USER login mode rn = ["USER", login, mode, "*", ":"+++rn]
 	//USERHOST [String]
 	//USERS (Maybe String)
 	//VERSION (Maybe String)
@@ -232,7 +238,10 @@ instance toString IRCCommand where
 	//WHO (Maybe String)
 	//WHOIS (Maybe String) [String]
 	//WHOWAS (Maybe String) [String]
-		_ = printToString r
+		_ = [printToString r]
+
+formatMSG :: String -> String
+formatMSG s = if (indexOf " " s > 0 || indexOf " " s > 0) (":" +++ s) s
 
 
 instance toString IRCReplies where toString r = printToString r

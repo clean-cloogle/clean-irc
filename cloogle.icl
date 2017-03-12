@@ -164,40 +164,7 @@ cloogle data w
 		| size s > 80 = subString 0 77 s + "..."
 		= s
 
-send :: [String] TCP_DuplexChannel *World -> (TCP_DuplexChannel, *World)
-send [] chan w = (chan, w)
-send [msg:msgs] {sChannel,rChannel} w
-# (_, w) = sleep 250000 w
-# (rpt,i,sChannel,w) = send_MT TIMEOUT (toByteSeq msg) sChannel w
-| rpt <> TR_Success = abort "Could not send request\n"
-= send msgs {sChannel=sChannel,rChannel=rChannel} w
-	where
-		sleep :: !Int !*World -> (!Int, *World)
-		sleep i w = code {
-				ccall usleep "I:I:A"
-			}
-
-recv :: TCP_DuplexChannel *World -> (Maybe String, TCP_DuplexChannel, *World)
-recv {sChannel,rChannel} w
-# (rpt, resp, rChannel, w) = receive_MT TIMEOUT rChannel w
-| rpt == TR_Expired = (Nothing, {sChannel=sChannel,rChannel=rChannel}, w)
-| rpt == TR_NoSuccess || isNothing resp = abort "Halp?\n"
-= (toString <$> resp, {sChannel=sChannel,rChannel=rChannel}, w)
-
-msg :: (String -> IRCCommand)
-msg = PRIVMSG ["#cloogle"]
-
-process :: *File TCP_DuplexChannel *World -> (*File, TCP_DuplexChannel, *World)
-process io chan w 
-# (mr, chan, w) = recv chan w
-| isNothing mr = process io chan w
-# resp = fromJust mr
-#! io = io <<< ("Received: " +++ resp +++ "\n")
-# ind = indexOf KEY resp
-| ind >= 0
-	# cmd = split " " $ rtrim $ subString (ind + size KEY) (size resp) resp
-	#! io =  io <<< ("Received command: " +++ printToString cmd +++ "\n")
-	# (w, toSend) = case cmd of
+/*
 		["stop":_] = (w, Nothing)
 		["ping":xs] = (w, Just [msg $ "pong " +++ join " " xs])
 		["query":xs]
@@ -217,28 +184,32 @@ process io chan w
 			"short" = Just [msg "short  URL  - I will give the url to https://cloo.gl shortening service and post back the result"]
 			_ = Just [msg "Unknown command"])
 		[c:_] = (w, Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]])
-	| isNothing toSend = (io, chan, w)
-	# (chan, w) = send (map toString $ fromJust toSend) chan w
-	= process io chan w
-| indexOf "PING :" resp >= 0
-	# cmd = rtrim $ subString (indexOf "PING :" resp + size "PING :") (size resp) resp
-	#! io = io <<< (toString $ PONG cmd Nothing) <<< "\n"
-	# (chan, w) = send [toString $ PONG cmd Nothing] chan w
-	= process io chan w
-= process io chan w
+*/
 
-Start :: *World -> *World
-Start w
-# (io, w) = stdio w
-# (ip, w) = lookupIPAddress SERVER w
-| isNothing ip = abort $ "DNS lookup for " +++ SERVER +++ " failed\n"
-# (Just ip) = ip
-# (rpt,chan,w) = connectTCP_MT TIMEOUT (ip, 6667) w
-| rpt == TR_Expired = abort $ "Connection to " +++ SERVER +++ " timed out\n"
-| rpt == TR_NoSuccess = abort $ "Could not connect to " +++ SERVER +++ "\n"
-# chan = fromJust chan
-# (chan, w) = send commands chan w
-# (io, chan, w) = process io chan w
-# ({sChannel,rChannel}, w) = send [toString $ QUIT Nothing] chan w
-# (_, w) = fclose io w
-= closeChannel sChannel (closeRChannel rChannel w)
+Start :: *World -> (MaybeErrorString (), *World)
+Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
+	where
+		toPrefix c = {irc_prefix=Nothing,irc_command=c}
+		startup = map toPrefix
+			[NICK "clooglebot" Nothing
+			,USER "cloogle" "0" "Cloogle bot"
+			,JOIN [("#cloogle", Nothing)]]
+		shutdown = map toPrefix [QUIT (Just "Bye")]
+
+		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)
+		process im s w = case process` im.irc_command w of
+			(Nothing, w) = (Nothing, (), w)
+			(Just cs, w) = (Just $ map toPrefix cs, (), w)
+
+		process` :: IRCCommand *World -> (Maybe [IRCCommand], *World)
+		process` (PRIVMSG t m) w = (Just $ if (startsWith "!" m)
+				(map (PRIVMSG t) $ realProcess $ split " " $ subString 1 (size m) m)
+			[], w)
+		process` (PING t mt) w = (Just [PONG t mt], w)
+		process` _ w = (Just [], w)
+
+		realProcess :: [String] -> [String]
+		realProcess ["help":xs] =
+			["type !help cmd for command specific help"
+			,"available commands: help"]
+		realProcess [c:_] = [join " " ["unknown cmd: ", c, ",  type !help to get help"]]
