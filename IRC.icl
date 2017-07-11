@@ -1,7 +1,9 @@
 implementation module IRC
 
+import StdGeneric
 import StdList
 import GenPrint
+import GenBimap
 import StdOverloaded
 import Data.Maybe
 import Data.Either
@@ -26,66 +28,90 @@ import StdDebug
 
 jon :== 'Text'.join
 
-derive gPrint IRCCommand, IRCReplies, IRCErrors, (,), Maybe, (), Either
+derive gPrint IRCCommand, IRCReplies, IRCErrors, (,), Maybe, (), Either, IRCMessage, IRCUser, IRCNumReply
 
-//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
-//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY test\r\n"
-//Start = runParser parseMessage $ fromString ":frobnicator!~frobnicat@92.110.128.124 AWAY :test with spaces\r\n"
-//Start = runParser parseMessage $ fromString ":cherryh.freenode.net NOTICE * :*** Found your hostname\r\n"
-//Start = runParser parseMessage $ fromString ":cherryh.freenode.net QUIT :hoi hoi\r\n"
-Start = parseIRCMessage ":clooglebot!~cloogle@dhcp-077-249-221-037.chello.nl QUIT\r\n"
+Start = jon "\n" $ map printToString
+	[ parseIRCMessage ":clooglebot!~cloogle@dhcp-077-249-221-037.chello.nl QUIT\r\n"
+	, parseIRCMessage ":clooglebot!~cloogle QUIT\r\n"
+	, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
+	, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 AWAY test\r\n"
+	, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 AWAY :test with spaces\r\n"
+	, parseIRCMessage ":cherryh.freenode.net NOTICE * :*** Found your hostname\r\n"
+	, parseIRCMessage ":cherryh.freenode.net QUIT :hoi hoi\r\n"
+	]
 
 (<+) infixr 5 :: a b -> String | toString a & toString b
 (<+) a b = toString a +++ toString b
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
 parseIRCMessage s = case runParser parsePrefix (fromString s) of
-	([(prefix, rest):_], _) = case parse parseReply rest of
-		Left e = case parseCmd rest of
-			Left e2 = Left [e2:e]
-			Right cmd = Right {IRCMessage | irc_prefix=prefix, irc_command=Right cmd}
-		Right repl = Right {IRCMessage | irc_prefix=prefix, irc_command=Left repl}
+	([(prefix, rest):_], _)
+		= case parse parseReply rest of
+			Left e = case parseCmd rest of
+				Left e2 = Left $ e2 ++ e
+				Right cmd = Right {IRCMessage | irc_prefix=prefix, irc_command=Right cmd}
+			Right repl = Right {IRCMessage | irc_prefix=prefix, irc_command=Left repl}
 	(_, es) = Left ["couldn't parse prefix":es]
 
+parsePrefix :: Parser Char (Maybe (Either IRCUser String))
+parsePrefix = optional (pToken ':' >>| parseEither parseUser parseHost) <* pToken ' '
 
-parseCmd :: [Char] -> Either Error IRCCommand
+generic gIRCParse a :: Parser String a
+gIRCParse{|String|} = pSatisfy (const True)
+gIRCParse{|Int|} = toInt <$> pSatisfy (const True)
+gIRCParse{|EITHER|} p b = LEFT <$> p <|> RIGHT <$> b
+gIRCParse{|PAIR|} p b = liftM2 PAIR p b
+gIRCParse{|UNIT|} = pFail
+gIRCParse{|OBJECT|} p = OBJECT <$> p
+gIRCParse{|CONS of d|} p = CONS <$> (pToken d.gcd_name >>| p)
+gIRCParse{|Maybe|} p = optional p
+gIRCParse{|(,)|} p s = liftM2 tuple p s
+gIRCParse{|[]|} p = pMany p
+gIRCParse{|(->)|} p b = undef
+
+derive gIRCParse IRCCommand
+
+parseCmd :: [Char] -> Either [Error] IRCCommand
 parseCmd cs
-| not (trace_tn $ toString cs) = undef
-= processParse $ argfun $ 'Text'.split " " $ toString cs
+= parse gIRCParse{|*|} $ argfun $ 'Text'.split " " $ toString cs
+//= parse cmdParser $ argfun $ 'Text'.split " " $ toString cs
 	where
 		argfun :: [String] -> [String]
 		argfun [] = []
 		argfun [x:xs]
 		# x = 'Text'.trim x
-		| x.[0] == ':' = ['Text'.join " " [x:xs]]
+		| x.[0] == ':' = [jon " " $ [x:map 'Text'.rtrim xs]]
 		| otherwise = [x:argfun xs]
 
-		command0 :: IRCCommand [String] -> Either Error IRCCommand
-		command0 c [] = Right c
-		command0 c x = Left $ toString c +++ " doesn't have arguments"
+		p = pSatisfy (const True)
+		lst = fmap $ 'Text'.split ","
+		opt = optional p
+		pInt = toInt <$> p
 
-		processParse :: [String] -> Either Error IRCCommand
-		processParse [] = Left "Empty list of arguments"
-		processParse [cmd:args] = case cmd of
-			//"ADMIN" = (Maybe String)
-			//"AWAY" = String
-			//"CONNECT" = String (Maybe (Int, Maybe String))
-			"DIE" = command0 DIE args
-			//"ERROR" = String
-			//"INFO" = (Maybe String)
-			//"INVITE" = String String
-			//"ISON" = [String]
-			//"JOIN" = [(String, Maybe String)]
-			//"KICK" = String String (Maybe String)
-			//"KILL" = String String
-			//"LINKS" = (Maybe (Maybe String, String))
-			//"LIST" = (Maybe ([String], Maybe String))
-			//"LUSERS" = (Maybe (String, Maybe String))
-			//"MODE" = String String (Maybe String) (Maybe String) (Maybe String)
-			//"MOTD" = (Maybe String)
-			//"NAMES" = [String]
+		nn p f = pToken p >>| f
+
+		cmdParser :: Parser String IRCCommand
+		cmdParser =
+			    (nn "ADMIN"   $ fmap ADMIN       opt)
+			<|> (nn "AWAY"    $ fmap AWAY        p)
+			<|> (nn "CONNECT" $ liftM2 CONNECT   p (optional $ liftM2 tuple pInt opt))
+			<|> (nn "DIE"     $ pure DIE)
+			<|> (nn "ERROR"   $ fmap ERROR       p)
+			<|> (nn "INFO"    $ fmap INFO        opt)
+			<|> (nn "INVITE"  $ liftM2 INVITE    p p)
+			<|> (nn "ISON"    $ fmap ISON      $ pMany p)
+//			<|> (nn "JOIN"    $ fmap JOIN      $ lst p >>= \ch->lst p >>= \ks->pure (zip2 ch (ks ++ repeat Nothing)))
+			<|> (nn "KICK"    $ liftM3 KICK      p p opt)
+			<|> (nn "KILL"    $ liftM2 KILL      p p)
+			<|> (nn "LINKS"   $ fmap LINKS     $ optional $ liftM2 tuple opt p)
+			<|> (nn "LIST"    $ fmap LIST      $ optional $ liftM2 tuple ('Text'.split "," <$> p) opt)
+			<|> (nn "LUSERS"  $ fmap LUSERS    $ optional $ liftM2 tuple p opt)
+			<|> (nn "MODE"    $ liftM5 MODE      p p opt opt opt)
+			<|> (nn "MOTD"    $ fmap MOTD      $ opt)
+			<|> (nn "NAMES"   $ fmap NAMES     $ lst p)
+			<|> (nn "NICK"    $ fmap NAMES     $ lst p)
 			//"NICK" = String (Maybe String)
-			"NJOIN" = command0 NJOIN args
+			//"NJOIN" = command0 NJOIN args
 			//"NOTICE" = String String
 			//"OPER" = String String 
 			//"PART" = [String]
@@ -93,16 +119,16 @@ parseCmd cs
 			//"PING" = String (Maybe String)
 			//"PONG" = String (Maybe String)
 			//"PRIVMSG" = [String] String
-			"QUIT" = case args of
-				[_,_:_] = Left $ "QUIT has too many arguments"
-				x = Right $ QUIT $ listToMaybe x
-			"REHASH" = command0 REHASH args
-			"RESTART" = command0 REHASH args
-			"SERVER" = command0 REHASH args
+//			"QUIT" = case args of
+//				[_,_:_] = Left $ "QUIT has too many arguments"
+//				x = Right $ QUIT $ listToMaybe x
+//			"REHASH" = command0 REHASH args
+//			"RESTART" = command0 REHASH args
+//			"SERVER" = command0 REHASH args
 			//"SERVICE" = String String String String
 			//"SERVLIST" = (Maybe (String, Maybe String))
 			//"SQUERY" = String String
-			"SQUIRT" = command0 REHASH args
+//			"SQUIRT" = command0 REHASH args
 			//"SQUIT" = String String
 			//"STATS" = (Maybe (String, Maybe String))
 			//"SUMMON" = String (Maybe (String, Maybe String))
@@ -117,10 +143,6 @@ parseCmd cs
 			//"WHO" = (Maybe String)
 			//"WHOIS" = (Maybe String) [String]
 			//"WHOWAS" = (Maybe String) [String]
-			_ = Left $ "Unknown command: " +++ cmd
-
-parsePrefix :: Parser Char (Maybe (Either String IRCUser))
-parsePrefix = optional (parseEither parseHost parseUser) <* spaceParser
 
 parseReply :: Parser Char IRCNumReply
 parseReply = (toString <$> pSome pDigit)
@@ -141,7 +163,7 @@ parseEither :: (Parser a b) (Parser a c) -> Parser a (Either b c)
 parseEither p q = Left <$> p <|> Right <$> q
 
 parseUser :: Parser Char IRCUser
-parseUser = pToken ':' >>| parseNick
+parseUser = parseNick
 		>>= \nick->optional (pToken '!' >>| parseUsr)
 		>>= \muser->optional (pToken '@' >>| parseHost)
 		>>= \mhost->pure {IRCUser | irc_nick=nick, irc_user=muser, irc_host=mhost}
@@ -157,7 +179,7 @@ pSpecial :: Parser Char Char
 pSpecial = pOneOf ['-', '[', ']', '\\', '\`', '^', '{', '}']
 
 parseHost :: Parser Char String
-parseHost = pToken ':' >>| (concat <$> pSepBy parseName (pToken '.'))
+parseHost = jon "." <$> pSepBy parseName (pToken '.')
 	where
 		parseName :: Parser Char String
 		parseName = toString <$> pSome (pAlpha <|> pDigit <|> pOneOf ['-'])
@@ -165,7 +187,7 @@ parseHost = pToken ':' >>| (concat <$> pSepBy parseName (pToken '.'))
 instance toString IRCNumReply where
 	toString m = toInt m.irc_reply <+ " " <+ m.irc_recipient <+ " " <+ formatMSG m.irc_message
 instance toString IRCMessage where
-	toString m = maybe "" (\s->either id ((<+) ":") s <+ " ") m.irc_prefix
+	toString m = maybe "" (\s->either ((<+) ":") id s <+ " ") m.irc_prefix
 		<+ either toString toString m.irc_command
 
 instance toString IRCUser where
@@ -204,7 +226,7 @@ instance toString IRCCommand where
 print :: IRCCommand -> [String]
 print r = case r of
 		ADMIN mm = ["ADMIN":maybeToList mm]
-	//AWAY String
+		AWAY m = ["AWAY",m]
 	//CONNECT String (Maybe (Int, Maybe String))
 	//DIE 
 	//ERROR String

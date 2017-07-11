@@ -7,7 +7,7 @@ from StdOverloaded import class fromInt, class toInt, class toString, class from
 from Text.Parsers.Simple.Core import :: Error
 
 :: IRCMessage =
-	{ irc_prefix :: Maybe (Either String IRCUser)
+	{ irc_prefix :: Maybe (Either IRCUser String)
 	, irc_command :: Either IRCNumReply IRCCommand}
 
 :: IRCNumReply =

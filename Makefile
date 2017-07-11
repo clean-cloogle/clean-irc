@@ -15,7 +15,7 @@ CLMLIBS:=\
 	-I $(CLEAN_HOME)/lib/Dynamics\
 	-I ./cloogle-sub/backend
 
-BINARIES:=test cloogle IRC
+BINARIES:=test IRC
 
 all: $(BINARIES)
 
