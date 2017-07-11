@@ -2,6 +2,7 @@ implementation module IRC
 
 import StdGeneric
 import StdList
+import StdTuple
 import GenPrint
 import GenBimap
 import StdOverloaded
@@ -56,24 +57,46 @@ parseIRCMessage s = case runParser parsePrefix (fromString s) of
 parsePrefix :: Parser Char (Maybe (Either IRCUser String))
 parsePrefix = optional (pToken ':' >>| parseEither parseUser parseHost) <* pToken ' '
 
-generic gIRCParse a :: Parser String a
-gIRCParse{|String|} = pSatisfy (const True)
-gIRCParse{|Int|} = toInt <$> pSatisfy (const True)
-gIRCParse{|EITHER|} p b = LEFT <$> p <|> RIGHT <$> b
-gIRCParse{|PAIR|} p b = liftM2 PAIR p b
-gIRCParse{|UNIT|} = pFail
-gIRCParse{|OBJECT|} p = OBJECT <$> p
-gIRCParse{|CONS of d|} p = CONS <$> (pToken d.gcd_name >>| p)
-gIRCParse{|Maybe|} p = optional p
-gIRCParse{|(,)|} p s = liftM2 tuple p s
-gIRCParse{|[]|} p = pMany p
-gIRCParse{|(->)|} p b = undef
+generic gIRCParse a :: [String] -> (Either [Error] a, [String])
+gIRCParse{|UNIT|} a = (Right UNIT, a)
+gIRCParse{|String|} [a:as] = (Right a, as)
+gIRCParse{|String|} [] = (Left ["Expected a string"], [])
+gIRCParse{|Int|} [a:as] = (Right $ toInt a, as)
+gIRCParse{|Int|} [] = (Left ["Expected an integer"], [])
+gIRCParse{|EITHER|} lp rp as = case lp as of
+	(Right a, rest) = (Right $ LEFT a, rest)
+	(Left e1, rest) = case rp as of
+		(Right a, rest) = (Right $ RIGHT a, rest)
+		(Left e2, rest) = (Left $ e1 ++ e2, [])
+gIRCParse{|OBJECT|} p as = case p as of
+	(Right e, rest) = (Right $ OBJECT e, rest)
+	(Left e, rest) = (Left e, [])
+gIRCParse{|CONS of d|} p [] = (Left ["Expected a cmd constructor: " +++ d.gcd_name], [])
+gIRCParse{|CONS of d|} p [a:as]
+| a <> d.gcd_name = (Left ["Wrong constructor. expected: " +++ d.gcd_name +++ ", got: " +++ a], [])
+= case p as of
+	(Right a, rest) = (Right $ CONS a, rest)
+	(Left e, rest) = (Left e, [])
+gIRCParse{|PAIR|} pl pr as = case pl as of
+	(Right a1, rest) = case pr rest of
+		(Right a2, rest) = (Right $ PAIR a1 a2, rest)
+		(Left e, rest) = (Left e, [])
+	(Left e, rest) = (Left e, [])
+gIRCParse{|[]|} pl as = plist pl as
+where
+	plist pl as = case pl as of
+		(Right e, rest) = case plist pl rest of
+			(Right es, rest) = (Right [e:es], rest)
+			(Left e, rest) = (Left e, [])
+		(Left e, rest) = (Right [], as)
+gIRCParse{|Maybe|} pm as = case pm as of
+	(Right a, rest) = (Right $ Just a, rest)
+	(Left e, rest) = (Right Nothing, as)
 
-derive gIRCParse IRCCommand
+derive gIRCParse (,), (,,), IRCCommand
 
 parseCmd :: [Char] -> Either [Error] IRCCommand
-parseCmd cs
-= parse gIRCParse{|*|} $ argfun $ 'Text'.split " " $ toString cs
+parseCmd cs = fst $ gIRCParse{|*|} $ argfun $ 'Text'.split " " $ toString cs
 //= parse cmdParser $ argfun $ 'Text'.split " " $ toString cs
 	where
 		argfun :: [String] -> [String]
