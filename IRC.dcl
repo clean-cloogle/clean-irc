@@ -8,7 +8,13 @@ from Text.Parsers.Simple.Core import :: Error
 
 :: IRCMessage =
 	{ irc_prefix :: Maybe (Either String IRCUser)
-	, irc_command :: IRCCommand}
+	, irc_command :: Either IRCNumReply IRCCommand}
+
+:: IRCNumReply =
+	{ irc_reply :: IRCReplies
+	, irc_recipient :: String
+	, irc_message :: String
+	}
 
 :: IRCUser = 
 	{ irc_nick :: String
@@ -16,9 +22,9 @@ from Text.Parsers.Simple.Core import :: Error
 	, irc_host :: Maybe String
 	}
 
-parseIRCMessage :: (String -> Either [Error] IRCMessage)
+parseIRCMessage :: String -> Either [Error] IRCMessage
 
-instance toString IRCCommand, IRCReplies, IRCErrors, IRCMessage, IRCUser
+instance toString IRCCommand, IRCReplies, IRCErrors, IRCMessage, IRCUser, IRCNumReply
 instance fromInt IRCReplies, IRCErrors
 instance toInt IRCReplies, IRCErrors
 

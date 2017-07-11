@@ -7,6 +7,7 @@ import StdEnv
 
 import Data.Functor
 import Data.Maybe
+import Data.Either
 from Data.Func import $
 from Text import class Text(..), instance Text String, instance + String
 
@@ -189,7 +190,7 @@ cloogle data w
 Start :: *World -> (MaybeErrorString (), *World)
 Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 	where
-		toPrefix c = {irc_prefix=Nothing,irc_command=c}
+		toPrefix c = {irc_prefix=Nothing,irc_command=Right c}
 		startup = map toPrefix
 			[NICK "clooglebot" Nothing
 			,USER "cloogle" "0" "Cloogle bot"
@@ -197,9 +198,11 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 		shutdown = map toPrefix [QUIT (Just "Bye")]
 
 		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)
-		process im s w = case process` im.irc_command w of
-			(Nothing, w) = (Nothing, (), w)
-			(Just cs, w) = (Just $ map toPrefix cs, (), w)
+		process im s w = case im.irc_command of
+			Left numr = (Just [], (), w)
+			Right cmd = case process` cmd w of
+				(Nothing, w) = (Nothing, (), w)
+				(Just cs, w) = (Just $ map toPrefix cs, (), w)
 
 		process` :: IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (PRIVMSG t m) w = (Just $ if (startsWith "!" m)
