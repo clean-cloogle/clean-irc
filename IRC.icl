@@ -40,25 +40,28 @@ where
 		, parseIRCMessage ":cherryh.freenode.net JOIN #cha,#ch-b #twilight\r\n"
 		, parseIRCMessage ":cherryh.freenode.net ISON a b c d e f :g h\r\n"
 		, parseIRCMessage ":wilhelm.freenode.net 001 clooglebot :Welcome to the freenode Internet Relay Chat Network clooglebot\r\n"
+		, parseIRCMessage "PING :orwell.freenode.net\r\n"
 
 		]
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
 parseIRCMessage s = case runParser parsePrefix (fromString s) of
+	// Prefix is parsed
 	([(prefix, rest):_], _)
-	= case parse parseReply rest of
-		Left e = case parseCmd rest of
-			Left e2 = Left [e2:e]
-			Right cmd
-				= Right {IRCMessage | irc_prefix=prefix, irc_command=Right cmd}
-		Right repl
-			= Right {IRCMessage | irc_prefix=prefix, irc_command=Left repl}
-	(_, es) = Left ["couldn't parse prefix":es]
+		//Try parsing a numeric reply
+		= case parse parseReply rest of
+			//Try a normal command
+			Left e = case parseCmd rest of
+				Left e2 = Left [e2:e]
+				Right cmd = Right {IRCMessage | irc_prefix=prefix, irc_command=Right cmd}
+			Right repl = Right {IRCMessage | irc_prefix=prefix, irc_command=Left repl}
+	// Error parsing prefix
+	(_, es) = Left ["Error parsing prefix"]
 
 //Prefix
 parsePrefix :: Parser Char (Maybe (Either IRCUser String))
 parsePrefix
-	= optional (pToken ':' >>| parseEither parseUser parseHost) <* pToken ' '
+	= optional (pToken ':' >>| parseEither parseUser parseHost <* pToken ' ')
 where
 	parseEither :: (Parser a b) (Parser a c) -> Parser a (Either b c)
 	parseEither p q = Left <$> p <|> Right <$> q
