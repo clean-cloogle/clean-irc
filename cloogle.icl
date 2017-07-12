@@ -7,7 +7,7 @@ import StdEnv
 import Data.Functor
 import Data.Maybe
 import Data.Either
-from Data.Func import $
+from Data.Func import $, mapSt
 from Text import class Text(..), instance Text String, instance + String
 
 import Text.JSON
@@ -83,7 +83,7 @@ import StdMisc
 import StdDebug
 
 doRequestL :: HTTPRequest Int *World -> *(MaybeErrorString HTTPResponse, *World)
-doRequestL req 0 w = (Error "Maximal redirect numbe exceeded", w)
+doRequestL req 0 w = (Error "Maximal redirect number exceeded", w)
 doRequestL req maxRedirects w
 | not (trace_tn $ toString req) = undef
 # (er, w) = doRequest req w
@@ -166,27 +166,6 @@ cloogle data w
 		| size s > 80 = subString 0 77 s + "..."
 		= s
 
-/*
-		["stop":_] = (w, Nothing)
-		["ping":xs] = (w, Just [msg $ "pong " +++ join " " xs])
-		["query":xs]
-			# (s, w) = cloogle (join " " xs) w
-			= (w, Just $ map msg $ split "\n" s)
-		["short"] = (w, Just [msg $ "short requires an url argument"])
-		["short":xs]
-			# (s, w) = shorten (join " " xs) w
-			= (w, Just [msg s])
-		["help"] = (w, Just 
-			[msg "type !help cmd for command specific help"
-			,msg "available commands: help, ping, query, short"])
-		["help":c:_] = (w, case c of
-			"help"  = Just [msg "help  [CMD] - I will print general help or the help of CMD"] 
-			"ping"  = Just [msg "ping  [TXT] - I will reply with pong and the optionar TXT"] 
-			"query" = Just [msg "query QUERY - I will send QUERY to cloogle and post the results"]
-			"short" = Just [msg "short  URL  - I will give the url to https://cloo.gl shortening service and post back the result"]
-			_ = Just [msg "Unknown command"])
-		[c:_] = (w, Just [msg $ join " " ["unknown command: " , c, ",  type !help to get help"]])
-*/
 
 Start :: *World -> (MaybeErrorString (), *World)
 Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
@@ -206,14 +185,44 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 				(Just cs, w) = (Just $ map toPrefix cs, (), w)
 
 		process` :: IRCCommand *World -> (Maybe [IRCCommand], *World)
-		process` (PRIVMSG t m) w = (Just $ if (startsWith "!" m)
-				(map (PRIVMSG t) $ realProcess $ split " " $ subString 1 (size m) m)
-			[], w)
+		process` (PRIVMSG t m) w
+			| m.[0] == '!'
+				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
+				= (Just $ map (PRIVMSG t) msgs, w)
+			= (Nothing, w)
 		process` (PING t mt) w = (Just [PONG t mt], w)
 		process` _ w = (Just [], w)
 
-		realProcess :: [String] -> [String]
-		realProcess ["help":xs] =
-			["type !help cmd for command specific help"
-			,"available commands: help"]
-		realProcess [c:_] = [join " " ["unknown cmd: ", c, ",  type !help to get help"]]
+		realProcess :: [String] *World -> ([String], *World)
+		realProcess ["help",x:xs] w = ((case x of
+			"help" =
+				[ "Usage: !help [ARG]"
+				, "Show this help, or the specific help of the argument"]
+			"ping" =
+				[ "Usage: !ping [ARG [ARG ...]]"
+				, "Ping the bot, it will pong the arguments back"]
+			"shorten" =
+				[ "Usage: !shorten URL [URL [URL ...]]"
+				, "Shorten the given urls with the cloo.gl url shortener"]
+			"query" =
+				[ "Usage: !query QUERY"
+				, "Query QUERY in cloogle and return the results"]
+			"restart" =
+				[ "Usage: !restart"
+				, "Restart the bot"]
+			x = ["Unknown command: " +++ x]
+			), w)
+		realProcess ["help"] w = (
+			["Type !help cmd for command specific help"
+			,"available commands: help, ping, shorten, query"], w)
+		realProcess ["ping":xs] w = (["pong " +++ join " " xs], w)
+		realProcess ["shorten":xs] w = case xs of
+			[] = (["shorten requires at least one argument"], w)
+			xs = mapSt shorten xs w
+		realProcess ["query":xs] w = case xs of
+			[] = (["query requires one or more arguments"], w)
+			xs = (["Not implemented yet..."], w)
+		realProcess ["restart"] w = abort "Restarted"
+		realProcess ["restart":_] w = (["restart takes no arguments"], w)
+		realProcess [c:_] w = ([join " " [
+			"Unknown cmd: ", c, ",  type !help to get help"]], w)
