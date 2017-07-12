@@ -31,8 +31,8 @@ import TCPIP
 commands :: [String]
 commands = map toString
 	[NICK "clooglebot" Nothing
-	,USER "cloogle" "0" "Cloogle bot"
-	,JOIN [("#cloogle", Nothing)]
+	,USER "cloogle" "0" "cloogle" "Cloogle bot"
+	,JOIN (CSepList ["#cloogle"])
 	]
 
 TIMEOUT :== Just 10000

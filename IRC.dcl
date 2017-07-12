@@ -69,7 +69,7 @@ instance toInt IRCReplies, IRCErrors
 	| TIME (Maybe String)
 	| TOPIC String (Maybe String)
 	| TRACE (Maybe String)
-	| USER String String String
+	| USER String String String String
 	| USERHOST CSepList
 	| USERS (Maybe String)
 	| VERSION (Maybe String)
