@@ -29,17 +29,8 @@ import TCPIP
 import IRC
 import IRCBot
 
-commands :: [String]
-commands = map toString
-	[NICK "clooglebot" Nothing
-	,USER "cloogle" "0" "cloogle" "Cloogle bot"
-	,JOIN (CSepList ["#cloogle"]) Nothing
-	]
-
 TIMEOUT :== Just 10000
 SERVER :== "irc.freenode.net"
-
-KEY :== "PRIVMSG #cloogle :!"
 
 doRequest :: HTTPRequest *World -> *(MaybeErrorString HTTPResponse, *World)
 doRequest req w
@@ -134,8 +125,9 @@ cloogle data w
 # resp = fromOk mer
 = case fromJSON $ fromString resp.HTTPResponse.rsp_data of
 	Nothing = ("couldn't parse json", w)
-	Just clr = ("Results for " + data + " -- https://cloogle.org/#" + replaceSubString "+" "%20" (urlEncode data) + "\n" +
-			processResults clr, w)
+	Just clr = ("Results for " + data + " -- https://cloogle.org/#" +
+		replaceSubString "+" "%20" (urlEncode data) + "\n" +
+		processResults clr, w)
 	where
 		processResults :: Response -> String
 		processResults resp
@@ -150,8 +142,6 @@ cloogle data w
 		processResult (ClassResult (br, {class_name,class_funs}))
 			= "Class in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ class_name +++ " with "
 				+++ toString (length class_funs) +++ " class functions"
-		//processResult (MacroResult (br, {macro_name}))
-		//	= "Macro in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ macro_name
 		processResult (ModuleResult (br, _))
 			= "Module in " +++ br.library +++ ": " +++ br.modul
 
@@ -174,7 +164,7 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 		startup = map toPrefix
 			[NICK "clooglebot" Nothing
 			,USER "cloogle" "cloogle" "cloogle" "Cloogle bot"
-			,JOIN (CSepList ["#cloogle"]) Nothing]
+			,JOIN (CSepList ["#cloogle", "#cleanlang"]) Nothing]
 		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
 		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)
@@ -189,7 +179,7 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 			| m.[0] == '!'
 				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
 				= (Just $ map (PRIVMSG t) msgs, w)
-			= (Nothing, w)
+			= (Just [], w)
 		process` (PING t mt) w = (Just [PONG t mt], w)
 		process` _ w = (Just [], w)
 
@@ -214,14 +204,14 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 			), w)
 		realProcess ["help"] w = (
 			["Type !help cmd for command specific help"
-			,"available commands: help, ping, shorten, query"], w)
+			,"available commands: help, ping, shorten, query, restart"], w)
 		realProcess ["ping":xs] w = (["pong " +++ join " " xs], w)
 		realProcess ["shorten":xs] w = case xs of
 			[] = (["shorten requires at least one argument"], w)
 			xs = mapSt shorten xs w
 		realProcess ["query":xs] w = case xs of
 			[] = (["query requires one or more arguments"], w)
-			xs = (["Not implemented yet..."], w)
+			xs = appFst (split "\n") $ cloogle (join " " xs) w
 		realProcess ["restart"] w = abort "Restarted"
 		realProcess ["restart":_] w = (["restart takes no arguments"], w)
 		realProcess [c:_] w = ([join " " [
