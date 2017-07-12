@@ -1,166 +1,134 @@
 implementation module IRC
 
 import StdList, StdTuple, StdOverloaded, StdFunc, StdString, StdChar, StdBool
-import GenPrint
-import Data.Maybe
-import Data.Either
 import _SystemArray
 
-import Text.Parsers.Simple.Core
-import Text.Parsers.Simple.Chars
-import Data.Tuple
-import Control.Monad
+import GenPrint
+import GenIRC
+
 import Control.Applicative
+import Control.Monad
+import Data.Either
+import Data.Maybe
+import Data.Tuple
+import Text.Parsers.Simple.Chars
+import Text.Parsers.Simple.Core
 
 from Data.Functor import <$>
 from Data.Func import $
-from Text import class Text(trim,rtrim,split,indexOf,concat), instance Text String
-import qualified Text
 from StdMisc import undef
+from Text
+	import class Text(trim,rtrim,split,indexOf,concat), instance Text String
+import qualified Text
 
 jon :== 'Text'.join
 
-derive gPrint IRCCommand, IRCReplies, IRCErrors, (,), Maybe, (), Either, IRCMessage, IRCUser, IRCNumReply
+derive gPrint IRCErrors, IRCReplies
 
-Start = jon "\n" $ map printToString
-	[ parseIRCMessage ":clooglebot!~cloogle@dhcp-077-249-221-037.chello.nl QUIT\r\n"
-	, parseIRCMessage ":clooglebot!~cloogle QUIT\r\n"
-	, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
-	, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 AWAY test\r\n"
-	, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 AWAY :test with spaces\r\n"
-	, parseIRCMessage ":cherryh.freenode.net NOTICE * :*** Found your hostname\r\n"
-	, parseIRCMessage ":cherryh.freenode.net QUIT :hoi hoi\r\n"
-	, parseIRCMessage ":cherryh.freenode.net ISON a b c d e f :g h\r\n"
-	]
-
-(<+) infixr 5 :: a b -> String | toString a & toString b
-(<+) a b = toString a +++ toString b
+Start = (map (fmap toString) msgs, msgs)
+where
+	msgs =
+		[ parseIRCMessage ":clooglebot!~cloogle@dhcp-077-249-221-037.chello.nl QUIT\r\n"
+		, parseIRCMessage ":clooglebot!~cloogle QUIT\r\n"
+		, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 QUIT\r\n"
+		, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 AWAY test\r\n"
+		, parseIRCMessage ":frobnicator!~frobnicat@92.110.128.124 AWAY :test with spaces\r\n"
+		, parseIRCMessage ":cherryh.freenode.net NOTICE * :*** Found your hostname\r\n"
+		, parseIRCMessage ":cherryh.freenode.net QUIT :hoi hoi\r\n"
+		, parseIRCMessage ":cherryh.freenode.net JOIN #cha,#ch-b #twilight\r\n"
+		, parseIRCMessage ":cherryh.freenode.net ISON a b c d e f :g h\r\n"
+		]
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
 parseIRCMessage s = case runParser parsePrefix (fromString s) of
-	([(prefix, rest):_], _)
-		= case parse parseReply rest of
-			Left e = case parseCmd rest of
-				Left e2 = Left $ e2 ++ e
-				Right cmd = Right {IRCMessage | irc_prefix=prefix, irc_command=Right cmd}
-			Right repl = Right {IRCMessage | irc_prefix=prefix, irc_command=Left repl}
+	([(prefix, rest):_], _) = case parse parseReply rest of
+		Left e = case parseCmd rest of
+			Left e2 = Left [e2:e]
+			Right cmd
+				= Right {IRCMessage | irc_prefix=prefix, irc_command=Right cmd}
+		Right repl
+			= Right {IRCMessage | irc_prefix=prefix, irc_command=Left repl}
 	(_, es) = Left ["couldn't parse prefix":es]
 
+//Prefix
 parsePrefix :: Parser Char (Maybe (Either IRCUser String))
-parsePrefix = optional (pToken ':' >>| parseEither parseUser parseHost) <* pToken ' '
+parsePrefix
+	= optional (pToken ':' >>| parseEither parseUser parseHost) <* pToken ' '
+where
+	parseEither :: (Parser a b) (Parser a c) -> Parser a (Either b c)
+	parseEither p q = Left <$> p <|> Right <$> q
 
-pOne [] = (Left ["Expected an argument"], [])
-pOne [a:as] = (Right a, as)
+	parseUser :: Parser Char IRCUser
+	parseUser = parseNick
+			>>= \nick->optional (pToken '!' >>| parseUsr)
+			>>= \muser->optional (pToken '@' >>| parseHost)
+			>>= \mhost->pure {IRCUser
+				| irc_nick=nick, irc_user=muser, irc_host=mhost}
+	
+	parseUsr :: Parser Char String
+	parseUsr = toString <$> pSome (pNoneOf [' ', '@':illegal])
+	
+	parseNick :: Parser Char String
+	parseNick = pAlpha 
+		>>= \c ->pMany (pAlpha <|> pDigit <|> pOneOf (fromString "-[]\\`^{}"))
+		>>= \cs->pure (toString [c:cs])
 
-generic gIRCParse a :: [String] -> (Either [Error] a, [String])
-gIRCParse{|UNIT|} a = (Right UNIT, a)
-gIRCParse{|String|} as = pOne as
-gIRCParse{|Int|} as = appFst (fmap toInt) $ pOne as
-gIRCParse{|EITHER|} lp rp as = case lp as of
-	(Right a, rest) = (Right $ LEFT a, rest)
-	(Left e1, _) = case rp as of
-		(Right a, rest) = (Right $ RIGHT a, rest)
-		(Left e2, _) = (Left $ e1 ++ e2, [])
-gIRCParse{|OBJECT|} p as = appFst (fmap OBJECT) $ p as
-gIRCParse{|CONS of d|} p [] = (Left ["Expected a cmd constructor: " +++ d.gcd_name], [])
-gIRCParse{|CONS of d|} p [a:as]
-| a <> d.gcd_name = (Left ["Wrong constructor. expected: " +++ d.gcd_name +++ ", got: " +++ a], [])
-= case p as of
-	(Right a, rest) = (Right $ CONS a, rest)
-	(Left e, _) = (Left e, [])
-gIRCParse{|PAIR|} pl pr as = case pl as of
-	(Right a1, rest) = case pr rest of
-		(Right a2, rest) = (Right $ PAIR a1 a2, rest)
-		(Left e, _) = (Left e, [])
-	(Left e, _) = (Left e, [])
-gIRCParse{|[]|} pl as = case pl as of
-		(Right e, rest) = case gIRCParse{|*->*|} pl rest of
-			(Right es, rest) = (Right [e:es], rest)
-			(Left e, _) = (Left e, [])
-		(Left e, _) = (Right [], as)
-gIRCParse{|Maybe|} pm as
-	= appFst (either (const $ Right Nothing) $ Right o Just) $ pm as
+	parseHost :: Parser Char String
+	parseHost = jon "." <$> pSepBy parseName (pToken '.')
+		where
+			parseName :: Parser Char String
+			parseName = toString <$> pSome (pAlpha <|> pDigit <|> pOneOf ['-'])
 
-derive gIRCParse (,), (,,), IRCCommand
-
-parseCmd :: [Char] -> Either [Error] IRCCommand
+//Parse Cmd
+parseCmd :: [Char] -> Either Error IRCCommand
 parseCmd cs = fst $ gIRCParse{|*|} $ argfun $ split " " $ toString cs
 	where
 		argfun :: [String] -> [String]
 		argfun [] = []
 		argfun [x:xs]
 		# x = trim x
-		| x.[0] == ':' = [jon " " $ [x:map rtrim xs]]
+		| x.[0] == ':' = [jon " " $ [x % (1, size x):map rtrim xs]]
 		| otherwise = [x:argfun xs]
 
+//Reply
 parseReply :: Parser Char IRCNumReply
 parseReply = (toString <$> pSome pDigit)
 	>>= \rep->pMiddle
 	>>= \recipient->spaceParser >>| (toString <$> pSome (pNoneOf illegal))
-	>>= \msg->pure {IRCNumReply|irc_reply=fs rep,irc_recipient=recipient,irc_message=msg}
+	>>= \msg->pure {IRCNumReply
+		| irc_reply=fromInt $ toInt rep
+		, irc_recipient=recipient,irc_message=msg}
 	where
-		fs :: String -> IRCReplies
-		fs s = fromInt $ toInt s
-//
-spaceParser :: Parser Char [Char]
-spaceParser = pMany $ pToken ' '
-//
-//parseServer :: Parser Char String
-//parseServer = pFail
-//
-parseEither :: (Parser a b) (Parser a c) -> Parser a (Either b c)
-parseEither p q = Left <$> p <|> Right <$> q
+		pMiddle :: Parser Char String
+		pMiddle = fmap toString $ spaceParser >>| liftM2 (\x xs->[x:xs])
+			(pSatisfy (not o ((==)':'))) (pMany $ pNoneOf [' ':illegal])
 
-parseUser :: Parser Char IRCUser
-parseUser = parseNick
-		>>= \nick->optional (pToken '!' >>| parseUsr)
-		>>= \muser->optional (pToken '@' >>| parseHost)
-		>>= \mhost->pure {IRCUser | irc_nick=nick, irc_user=muser, irc_host=mhost}
+		spaceParser :: Parser Char [Char]
+		spaceParser = pMany $ pToken ' '
 
-parseUsr :: Parser Char String
-parseUsr = toString <$> pSome (pNoneOf [' ', '@':illegal])
-
-parseNick :: Parser Char String
-parseNick = pAlpha >>= \c->pMany (pAlpha <|> pDigit <|> pSpecial)
-	>>= \cs->pure (toString [c:cs])
-
-pSpecial :: Parser Char Char
-pSpecial = pOneOf ['-', '[', ']', '\\', '\`', '^', '{', '}']
-
-parseHost :: Parser Char String
-parseHost = jon "." <$> pSepBy parseName (pToken '.')
-	where
-		parseName :: Parser Char String
-		parseName = toString <$> pSome (pAlpha <|> pDigit <|> pOneOf ['-'])
-
-instance toString IRCNumReply where
-	toString m = toInt m.irc_reply <+ " " <+ m.irc_recipient <+ " " <+ formatMSG m.irc_message
-instance toString IRCMessage where
-	toString m = maybe "" (\s->either ((<+) ":") id s <+ " ") m.irc_prefix
-		<+ either toString toString m.irc_command
-
-instance toString IRCUser where
-	toString m = m.irc_nick <+ maybe "" ((<+) "!") m.irc_user
-		<+ maybe "" ((<+) "@") m.irc_host
-
-pMiddle :: Parser Char String
-pMiddle = fmap toString $
-	spaceParser >>| liftM2 (\x xs->[x:xs]) (pSatisfy (not o ((==)':')) (pMany $ pNoneOf [' ':illegal]))
-
+//Common parsers
 pNoneOf :: [a] -> Parser a a | Eq a
 pNoneOf l = pSatisfy (not o flip isMember l)
 
 illegal :: [Char]
 illegal = ['\x00','\r','\n']
 
+instance toString IRCNumReply where
+	toString m = toInt m.irc_reply <+ " " <+
+		m.irc_recipient <+ concat (gIRCPrint{|*|} m.irc_message)
+instance toString IRCMessage where
+	toString m = maybe "" (\s->either ((<+) ":") id s <+ " ") m.irc_prefix
+		<+ either toString toString m.irc_command
+instance toString IRCUser where
+	toString m = m.irc_nick <+ maybe "" ((<+) "!") m.irc_user
+		<+ maybe "" ((<+) "@") m.irc_host
 instance toString IRCCommand where
-	toString r = jon " " (gIRCPrint{|*|} r) +++ "\r\n"
-
-formatMSG :: String -> String
-formatMSG s = if (indexOf " " s > 0 || indexOf " " s > 0) (":" +++ s) s
-
+	toString m = jon " " (gIRCPrint{|*|} m) +++ "\r\n"
 instance toString IRCReplies where toString r = printToString r
 instance toString IRCErrors where toString r = printToString r
+
+(<+) infixr 5 :: a b -> String | toString a & toString b
+(<+) a b = toString a +++ toString b
 
 instance fromInt IRCReplies where
 	fromInt r = case r of 

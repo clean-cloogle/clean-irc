@@ -1,25 +1,24 @@
 definition module IRC
 
-import IRCBot
 from Data.Maybe import :: Maybe
 from Data.Either import :: Either
 from StdOverloaded import class fromInt, class toInt, class toString, class fromString
 from Text.Parsers.Simple.Core import :: Error
 
 :: IRCMessage =
-	{ irc_prefix :: Maybe (Either IRCUser String)
-	, irc_command :: Either IRCNumReply IRCCommand}
+	{ irc_prefix    :: Maybe (Either IRCUser String)
+	, irc_command   :: Either IRCNumReply IRCCommand}
 
 :: IRCNumReply =
-	{ irc_reply :: IRCReplies
+	{ irc_reply     :: IRCReplies
 	, irc_recipient :: String
-	, irc_message :: String
+	, irc_message   :: String
 	}
 
 :: IRCUser = 
-	{ irc_nick :: String
-	, irc_user :: Maybe String
-	, irc_host :: Maybe String
+	{ irc_nick      :: String
+	, irc_user      :: Maybe String
+	, irc_host      :: Maybe String
 	}
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
@@ -28,6 +27,7 @@ instance toString IRCCommand, IRCReplies, IRCErrors, IRCMessage, IRCUser, IRCNum
 instance fromInt IRCReplies, IRCErrors
 instance toInt IRCReplies, IRCErrors
 
+:: CSepList = CSepList [String]
 :: IRCCommand
 	= ADMIN (Maybe String)
 	| AWAY String
@@ -37,24 +37,24 @@ instance toInt IRCReplies, IRCErrors
 	| INFO (Maybe String)
 	| INVITE String String
 	| ISON [String]
-	| JOIN [(String, Maybe String)]
+	| JOIN CSepList (Maybe String)
 	| KICK String String (Maybe String)
 	| KILL String String
 	| LINKS (Maybe (Maybe String, String))
-	| LIST (Maybe ([String], Maybe String))
+	| LIST (Maybe (CSepList, Maybe String))
 	| LUSERS (Maybe (String, Maybe String))
 	| MODE String String (Maybe String) (Maybe String) (Maybe String)
 	| MOTD (Maybe String)
-	| NAMES [String]
+	| NAMES CSepList
 	| NICK String (Maybe String)
 	| NJOIN 
 	| NOTICE String String
 	| OPER String String 
-	| PART [String]
+	| PART CSepList
 	| PASS String
 	| PING String (Maybe String)
 	| PONG String (Maybe String)
-	| PRIVMSG [String] String
+	| PRIVMSG CSepList String
 	| QUIT (Maybe String)
 	| REHASH 
 	| RESTART 
@@ -70,13 +70,13 @@ instance toInt IRCReplies, IRCErrors
 	| TOPIC String (Maybe String)
 	| TRACE (Maybe String)
 	| USER String String String
-	| USERHOST [String]
+	| USERHOST CSepList
 	| USERS (Maybe String)
 	| VERSION (Maybe String)
 	| WALLOPS String
 	| WHO (Maybe String)
-	| WHOIS (Maybe String) [String]
-	| WHOWAS (Maybe String) [String]
+	| WHOIS (Maybe String) String
+	| WHOWAS String (Maybe (String, Maybe String))
 
 :: IRCReplies = RPL_WELCOME | RPL_YOURHOST | RPL_CREATED | RPL_MYINFO |
 	RPL_BOUNCE | RPL_TRACELINK | RPL_TRACECONNECTING | RPL_TRACEHANDSHAKE |
@@ -109,9 +109,10 @@ instance toInt IRCReplies, IRCErrors
 	ERR_NOTONCHANNEL | ERR_USERONCHANNEL | ERR_NOLOGIN | ERR_SUMMONDISABLED |
 	ERR_USERSDISABLED | ERR_NOTREGISTERED | ERR_NEEDMOREPARAMS |
 	ERR_ALREADYREGISTRED | ERR_NOPERMFORHOST | ERR_PASSWDMISMATCH |
-	ERR_YOUREBANNEDCREEP | ERR_YOUWILLBEBANNED | ERR_KEYSET | ERR_CHANNELISFULL |
-	ERR_UNKNOWNMODE | ERR_INVITEONLYCHAN | ERR_BANNEDFROMCHAN |
-	ERR_BADCHANNELKEY | ERR_BADCHANMASK | ERR_NOCHANMODES | ERR_BANLISTFULL |
-	ERR_NOPRIVILEGES | ERR_CHANOPRIVSNEEDED | ERR_CANTKILLSERVER |
-	ERR_RESTRICTED | ERR_UNIQOPPRIVSNEEDED | ERR_NOOPERHOST |
-	ERR_UMODEUNKNOWNFLAG | ERR_USERSDONTMATCH
+	ERR_YOUREBANNEDCREEP | ERR_YOUWILLBEBANNED | ERR_KEYSET |
+	ERR_CHANNELISFULL | ERR_UNKNOWNMODE | ERR_INVITEONLYCHAN |
+	ERR_BANNEDFROMCHAN | ERR_BADCHANNELKEY | ERR_BADCHANMASK |
+	ERR_NOCHANMODES | ERR_BANLISTFULL | ERR_NOPRIVILEGES |
+	ERR_CHANOPRIVSNEEDED | ERR_CANTKILLSERVER | ERR_RESTRICTED |
+	ERR_UNIQOPPRIVSNEEDED | ERR_NOOPERHOST | ERR_UMODEUNKNOWNFLAG |
+	ERR_USERSDONTMATCH
