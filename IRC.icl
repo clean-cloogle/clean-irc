@@ -41,7 +41,7 @@ where
 		, parseIRCMessage ":cherryh.freenode.net ISON a b c d e f :g h\r\n"
 		, parseIRCMessage ":wilhelm.freenode.net 001 clooglebot :Welcome to the freenode Internet Relay Chat Network clooglebot\r\n"
 		, parseIRCMessage "PING :orwell.freenode.net\r\n"
-
+		, parseIRCMessage ":ChanServ!ChanServ@services. MODE #cloogle +o frobnicator\r\n"
 		]
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
@@ -82,7 +82,8 @@ where
 		>>= \cs->pure (toString [c:cs])
 
 	parseHost :: Parser Char String
-	parseHost = jon "." <$> pSepBy parseName (pToken '.')
+	parseHost = jon "." <$> (pSepBy parseName (pToken '.'))
+		>>= \s->optional (pToken '.') >>= pure o maybe s (\p->s+++toString s)
 		where
 			parseName :: Parser Char String
 			parseName = toString <$> pSome (pAlpha <|> pDigit <|> pOneOf ['-'])
