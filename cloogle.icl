@@ -2,7 +2,6 @@ module cloogle
 
 import Cloogle
 import GenPrint
-import IRC
 import StdEnv
 
 import Data.Functor
@@ -27,12 +26,14 @@ import Data.Functor
 import Data.Tuple
 
 import TCPIP
+import IRC
+import IRCBot
 
 commands :: [String]
 commands = map toString
 	[NICK "clooglebot" Nothing
 	,USER "cloogle" "0" "cloogle" "Cloogle bot"
-	,JOIN (CSepList ["#cloogle"])
+	,JOIN (CSepList ["#cloogle"]) Nothing
 	]
 
 TIMEOUT :== Just 10000
@@ -149,8 +150,8 @@ cloogle data w
 		processResult (ClassResult (br, {class_name,class_funs}))
 			= "Class in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ class_name +++ " with "
 				+++ toString (length class_funs) +++ " class functions"
-		processResult (MacroResult (br, {macro_name}))
-			= "Macro in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ macro_name
+		//processResult (MacroResult (br, {macro_name}))
+		//	= "Macro in " +++ br.library +++ ": " +++ br.modul +++ "\n" +++ macro_name
 		processResult (ModuleResult (br, _))
 			= "Module in " +++ br.library +++ ": " +++ br.modul
 
@@ -193,9 +194,9 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 		toPrefix c = {irc_prefix=Nothing,irc_command=Right c}
 		startup = map toPrefix
 			[NICK "clooglebot" Nothing
-			,USER "cloogle" "0" "Cloogle bot"
-			,JOIN [("#cloogle", Nothing)]]
-		shutdown = map toPrefix [QUIT (Just "Bye")]
+			,USER "cloogle" "cloogle" "cloogle" "Cloogle bot"
+			,JOIN (CSepList ["#cloogle"]) Nothing]
+		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
 		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)
 		process im s w = case im.irc_command of

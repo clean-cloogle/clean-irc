@@ -14,16 +14,18 @@ import Data.Tuple
 import Text.Parsers.Simple.Chars
 import Text.Parsers.Simple.Core
 
+import StdDebug
+
 from Data.Functor import <$>
 from Data.Func import $
-from StdMisc import undef
-from Text
-	import class Text(trim,rtrim,split,indexOf,concat), instance Text String
+from StdMisc import undef, abort
+from Text import class Text(lpad,trim,rtrim,split,indexOf,concat),
+	instance Text String
 import qualified Text
 
 jon :== 'Text'.join
 
-derive gPrint IRCErrors, IRCReplies
+derive gPrint IRCErrors, IRCReplies, Maybe, Either, IRCUser, IRCNumReply
 
 Start = (map (fmap toString) msgs, msgs)
 where
@@ -37,11 +39,14 @@ where
 		, parseIRCMessage ":cherryh.freenode.net QUIT :hoi hoi\r\n"
 		, parseIRCMessage ":cherryh.freenode.net JOIN #cha,#ch-b #twilight\r\n"
 		, parseIRCMessage ":cherryh.freenode.net ISON a b c d e f :g h\r\n"
+		, parseIRCMessage ":wilhelm.freenode.net 001 clooglebot :Welcome to the freenode Internet Relay Chat Network clooglebot\r\n"
+
 		]
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
 parseIRCMessage s = case runParser parsePrefix (fromString s) of
-	([(prefix, rest):_], _) = case parse parseReply rest of
+	([(prefix, rest):_], _)
+	= case parse parseReply rest of
 		Left e = case parseCmd rest of
 			Left e2 = Left [e2:e]
 			Right cmd
@@ -91,18 +96,19 @@ parseCmd cs = fst $ gIRCParse{|*|} $ argfun $ split " " $ toString cs
 		| otherwise = [x:argfun xs]
 
 //Reply
-parseReply :: Parser Char IRCNumReply
-parseReply = (toString <$> pSome pDigit)
-	>>= \rep->pMiddle
-	>>= \recipient->spaceParser >>| (toString <$> pSome (pNoneOf illegal))
-	>>= \msg->pure {IRCNumReply
-		| irc_reply=fromInt $ toInt rep
-		, irc_recipient=recipient,irc_message=msg}
-	where
-		pMiddle :: Parser Char String
-		pMiddle = fmap toString $ spaceParser >>| liftM2 (\x xs->[x:xs])
-			(pSatisfy (not o ((==)':'))) (pMany $ pNoneOf [' ':illegal])
 
+parseReply :: Parser Char IRCNumReply
+parseReply = spaceParser
+	>>|       (pMany (pToken '0') >>| pSome pDigit <* spaceParser)
+	>>= \rep->(toString <$> pSome (pNoneOf [' ':illegal]) <* spaceParser)
+	>>= \rec->(toString <$> pSome (pNoneOf illegal))
+	>>= \msg->pure {IRCNumReply
+		| irc_reply     = fromInt $ toInt $ toString rep
+		, irc_recipient = rec
+		, irc_message   = msg % (if (msg.[0] == ':') 1 0, size msg)
+		}
+	<* pToken '\r' <* pToken '\n'
+	where
 		spaceParser :: Parser Char [Char]
 		spaceParser = pMany $ pToken ' '
 
@@ -114,7 +120,7 @@ illegal :: [Char]
 illegal = ['\x00','\r','\n']
 
 instance toString IRCNumReply where
-	toString m = toInt m.irc_reply <+ " " <+
+	toString m = lpad (toString $ toInt m.irc_reply) 3 '0' <+ " " <+
 		m.irc_recipient <+ concat (gIRCPrint{|*|} m.irc_message)
 instance toString IRCMessage where
 	toString m = maybe "" (\s->either ((<+) ":") id s <+ " ") m.irc_prefix
@@ -174,7 +180,7 @@ instance fromInt IRCReplies where
 		383 = RPL_YOURESERVICE; 391 = RPL_TIME;
 		392 = RPL_USERSSTART; 393 = RPL_USERS;
 		394 = RPL_ENDOFUSERS; 395 = RPL_NOUSERS;
-		_ = undef
+		_ = abort $ "fromInt IRCReplies: " +++ toString r +++ " undef\n"
 
 instance toInt IRCReplies where
 	toInt r = case r of 

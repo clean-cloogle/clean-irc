@@ -1,0 +1,3 @@
+[submodule "libcloogle"]
+	path = libcloogle
+	url = https://github.com/clean-cloogle/libcloogle.git
