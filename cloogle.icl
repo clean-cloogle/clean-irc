@@ -117,6 +117,7 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 
 		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (Just (Left user)) (PRIVMSG t m) w
+			| m == "!restart" = (Nothing, w)
 			| m.[0] == '!'
 				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
 				= (Just $ map (PRIVMSG recipient) msgs, w)
@@ -157,7 +158,6 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 		realProcess ["query":xs] w = case xs of
 			[] = (["query requires one or more arguments"], w)
 			xs = appFst (split "\n") $ cloogle (join " " xs) w
-		realProcess ["restart"] w = abort "Restarted"
 		realProcess ["restart":_] w = (["restart takes no arguments"], w)
 		realProcess [c:_] w = ([join " " [
 			"Unknown cmd: ", c, ",  type !help to get help"]], w)

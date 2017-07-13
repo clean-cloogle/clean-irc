@@ -16,7 +16,7 @@ CLMLIBS:=\
 	-I ~/projects/gast/Libraries\
 	-I ./libcloogle
 
-BINARIES:=IRC cloogle test
+BINARIES:=IRC cloogle #test
 
 all: $(BINARIES)
 
