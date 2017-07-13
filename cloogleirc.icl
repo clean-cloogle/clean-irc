@@ -173,12 +173,12 @@ Start w
 			| m == "!restart" = (Nothing, w)
 			| m.[0] == '!'
 				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
-				= (Just $ map (NOTICE recipient) msgs, w)
+				= (Just $ map reply msgs, w)
 			= (Just [], w)
 		where
-			recipient = case (\(CSepList [t:_]) -> t.[0]) t of
-				'#' -> t
-				_   -> CSepList [user.irc_nick]
+			reply = case (\(CSepList [t:_]) -> t.[0]) t of
+				'#' -> PRIVMSG t
+				_   -> NOTICE user.irc_nick
 		process` _ (PING t mt) w = (Just [PONG t mt], w)
 		process` _ _ w = (Just [], w)
 
