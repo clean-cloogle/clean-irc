@@ -173,7 +173,7 @@ Start w
 			| m == "!restart" = (Nothing, w)
 			| m.[0] == '!'
 				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
-				= (Just $ map (PRIVMSG recipient) msgs, w)
+				= (Just $ map (NOTICE recipient) msgs, w)
 			= (Just [], w)
 		where
 			recipient = case (\(CSepList [t:_]) -> t.[0]) t of
