@@ -1,7 +1,7 @@
 CLEAN_HOME?=/opt/clean
 CLM:=clm
 
-override CLMFLAGS+=-nt
+override CLMFLAGS+=-nt -dynamics
 GCCVERSIONGTEQ6:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 6)
 ifeq "$(GCCVERSIONGTEQ6)" "1"
 	override CLMFLAGS+=-l -no-pie
