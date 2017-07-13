@@ -63,12 +63,12 @@ process chan acc state bot w
 			//Recurse
 			= process chan acc state bot w
 
-send :: [String] TCP_DuplexChannel *World -> (MaybeErrorString (), TCP_DuplexChannel, *World)
+send :: ![String] !TCP_DuplexChannel !*World -> (!MaybeErrorString (), !TCP_DuplexChannel, !*World)
 send [] chan w = (Ok (), chan, w)
 send [msg:msgs] {sChannel,rChannel} w
-# (_, w) = sleep 500000 w
 # (rpt,i,sChannel,w) = send_MT TIMEOUT (toByteSeq msg) sChannel w
 | rpt <> TR_Success = (Error "Could not send message", {sChannel=sChannel,rChannel=rChannel}, w)
+# (_, w) = sleep 500000 w
 = send msgs {sChannel=sChannel,rChannel=rChannel} w
 	where
 		sleep :: !Int !*World -> (!Int, *World)
