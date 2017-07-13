@@ -111,18 +111,22 @@ Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
 		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)
 		process im s w = case im.irc_command of
 			Left numr = (Just [], (), w)
-			Right cmd = case process` cmd w of
+			Right cmd = case process` im.irc_prefix cmd w of
 				(Nothing, w) = (Nothing, (), w)
 				(Just cs, w) = (Just $ map toPrefix cs, (), w)
 
-		process` :: IRCCommand *World -> (Maybe [IRCCommand], *World)
-		process` (PRIVMSG t m) w
+		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
+		process` (Just (Left user)) (PRIVMSG t m) w
 			| m.[0] == '!'
 				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
-				= (Just $ map (PRIVMSG t) msgs, w)
+				= (Just $ map (PRIVMSG recipient) msgs, w)
 			= (Just [], w)
-		process` (PING t mt) w = (Just [PONG t mt], w)
-		process` _ w = (Just [], w)
+		where
+			recipient = case (\(CSepList [t:_]) -> t.[0]) t of
+				'#' -> t
+				_   -> CSepList [user.irc_nick]
+		process` _ (PING t mt) w = (Just [PONG t mt], w)
+		process` _ _ w = (Just [], w)
 
 		realProcess :: [String] *World -> ([String], *World)
 		realProcess ["help",x:xs] w = ((case x of
