@@ -13,9 +13,10 @@ CLMLIBS:=\
 	-I $(CLEAN_HOME)/lib/Generics\
 	-I $(CLEAN_HOME)/lib/TCPIP\
 	-I $(CLEAN_HOME)/lib/Dynamics\
+	-I ~/projects/gast/Libraries\
 	-I ./libcloogle
 
-BINARIES:=IRC cloogle
+BINARIES:=IRC cloogle test
 
 all: $(BINARIES)
 

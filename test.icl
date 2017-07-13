@@ -1,12 +1,20 @@
 module test
 
-
-import gast
+import Gast
 import IRC
+import GenBimap
+import Data.Func
+import Data.Either
 
-derive ggen IRCMessage
+import Text
 
-Start = Test [] pParsePrint
+derive ggen IRCMessage, Either, IRCUser, IRCCommand, Maybe, CSepList, IRCNumReply, IRCReplies
+derive genShow IRCMessage, Either, IRCUser, IRCCommand, Maybe, CSepList, IRCNumReply, IRCReplies
+
+//Doesn't work, generates illegal irc commands with spaces in recipients
+Start = concat $ Test [] pParsePrint
 
 pParsePrint :: IRCMessage -> Bool
-pParsePrint a = toString (parseIRCMessage (toString a)) == toString a
+pParsePrint a
+# str = toString a
+= either (const False) ((==)str o toString) $ parseIRCMessage str

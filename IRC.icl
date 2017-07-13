@@ -125,7 +125,7 @@ illegal = ['\x00','\r','\n']
 
 instance toString IRCNumReply where
 	toString m = lpad (toString $ toInt m.irc_reply) 3 '0' <+ " " <+
-		m.irc_recipient <+ concat (gIRCPrint{|*|} m.irc_message)
+		m.irc_recipient <+ " " <+ concat (gIRCPrint{|*|} m.irc_message)
 instance toString IRCMessage where
 	toString m = maybe "" (\s->either ((<+) ":") id s <+ " ") m.irc_prefix
 		<+ either toString toString m.irc_command
