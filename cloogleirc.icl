@@ -1,4 +1,4 @@
-module cloogle
+module cloogleirc
 
 import Cloogle
 import GenPrint
@@ -19,8 +19,9 @@ import Text.URI
 import Control.Applicative
 import qualified Control.Monad as CM
 import qualified Data.Map as DM
-from Control.Monad import class Monad, instance Monad Maybe
+from Control.Monad import class Monad, instance Monad Maybe, >>=
 from Text.Encodings.UrlEncoding import urlEncode
+import System.CommandLine
 import Internet.HTTP
 import Data.Error
 import Data.List
@@ -97,15 +98,67 @@ cloogle data w
 		| size s > 80 = subString 0 77 s + "..."
 		= s
 
+:: BotSettings =
+		{ bs_nick     :: String
+		, bs_nickserv :: Maybe String
+		, bs_autojoin :: [String]
+		, bs_port     :: Int
+		, bs_server   :: String
+		}
 
 Start :: *World -> (MaybeErrorString (), *World)
-Start w = bot ("irc.freenode.net", 6667) startup shutdown () process w
+Start w
+# ([arg0:args], w) = getCommandLine w
+# bs = parseCLI args 
+| isError bs = (Error $ "\n" +++ fromError bs +++ "\n", w)
+# (Ok bs) = bs
+= bot (bs.bs_server, bs.bs_port) (startup bs) shutdown () process w
 	where
+		parseCLI :: [String] -> MaybeErrorString BotSettings
+		parseCLI [] = Ok
+			{ bs_nick     = "clooglebot"
+			, bs_nickserv = Nothing
+			, bs_autojoin = []
+			, bs_port     = 6667
+			, bs_server   = "irc.freenode.net"
+			}
+		parseCLI [a:as]
+		| a == "-n" || a == "--nick"
+			= arg1 "--nick" as \a c->{c & bs_nick=a}
+		| a == "-ns" || a == "--nickserv"
+			= arg1 "--nickserv" as \a c->{c & bs_nickserv=Just a}
+		| a == "-a" || a == "--autojoin"
+			= arg1 "--autojoin" as \a c->{c & bs_autojoin=c.bs_autojoin ++ [a]}
+		| a == "-p" || a == "--port"
+			= arg1 "--port" as \a c->{c & bs_port=toInt a}
+		| a == "-s" || a == "--server"
+			= arg1 "--port" as \a c->{c & bs_server=a}
+		| a == "-h" || a == "--help" = Error $ join "\n" $
+			[ "Usage: cloogle [OPTS]"
+			, "Options:"
+			, "\t--nick/-n NICKNAME     Use the given nickname instead of clooglebot"
+			, "\t--nickserv/-ns PW      Identify via the given password with NickServ"
+			, "\t--port/-p PORT         Use the given port instead of port 6667"
+			, "\t--server/-s SERVER     Use the given server instead of irc.freenode.net"
+			, "\t--autojoin/-a CHANNEL  Add CHANNEL to the autojoin list. This command "
+			, "\t                       can be called multiple times. Beware that #"
+			, "\t                       has to be escaped in most shells"
+			]
+		= Error $ "Unknown option: " +++ a
+
+		arg1 name [] _ = Error $ name +++ " requires an argument"
+		arg1 name [a:as] f = parseCLI as >>= Ok o f a
+
+		nickserv pw = PRIVMSG (CSepList ["NickServ"]) $ "IDENTIFY " +++ pw
+
 		toPrefix c = {irc_prefix=Nothing,irc_command=Right c}
-		startup = map toPrefix
-			[NICK "clooglebot" Nothing
-			,USER "cloogle" "cloogle" "cloogle" "Cloogle bot"
-			,JOIN (CSepList ["#cloogle", "#cleanlang"]) Nothing]
+
+		startup bs = map toPrefix $
+			[   NICK bs.bs_nick Nothing
+			,   USER "cloogle" "cloogle" "cloogle" "Cloogle bot"
+			]++ maybe [] (pure o nickserv) bs.bs_nickserv
+			 ++ if (isEmpty bs.bs_autojoin) []
+				[JOIN (CSepList bs.bs_autojoin) Nothing]
 		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
 		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)

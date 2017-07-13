@@ -3,6 +3,6 @@ while true
 do
 	git pull origin master
 	make
-	./cloogle
+	./cloogleirc "$@"
 	sleep 5s
 done
