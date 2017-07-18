@@ -86,7 +86,7 @@ where
 		>>= \s->optional (pToken '.') >>= pure o maybe s (\p->s+++toString s)
 		where
 			parseName :: Parser Char String
-			parseName = toString <$> pSome (pAlpha <|> pDigit <|> pOneOf ['-'])
+			parseName = toString <$> pSome (pAlpha <|> pDigit <|> pOneOf ['-', '/'])
 
 //Parse Cmd
 parseCmd :: [Char] -> Either Error IRCCommand
