@@ -14,29 +14,29 @@ import StdBool
 
 TIMEOUT :== Just 1000
 
-bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage .a *World -> .(Maybe [IRCMessage], .a, *World)) *World -> *(Maybe String, .a, *World)
+bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage .a *World -> *(Maybe [IRCMessage], .a, *World)) *World -> *(Maybe String, .a, *World)
 bot (host, port) start end state bot w
 //Lookup hostname
 # (ip, w) = lookupIPAddress host w
 | isNothing ip
-	= (Error $ "DNS lookup for " +++ host +++ " failed", state, w)
+	= (Just $ "DNS lookup for " +++ host +++ " failed", state, w)
 //Connect
 # (rpt,chan,w) = connectTCP_MT TIMEOUT (fromJust ip, port) w
 | rpt == TR_Expired
-	= (Error $ "Connection to " +++ host +++ " timed out", state, w)
+	= (Just $ "Connection to " +++ host +++ " timed out", state, w)
 | rpt == TR_NoSuccess
-	= (Error $ "Could not connect to " +++ host, state, w)
+	= (Just $ "Could not connect to " +++ host, state, w)
 // Send startup commands
 # (merr, chan, w) = send (map toString start) (fromJust chan) w
-| isError merr = (Error $ fromError merr, state, w)
+| isError merr = (Just $ fromError merr, state, w)
 //Start processing function
 # (mer, chan, state, w) = process chan "" state bot w
-| isError mer = (Error $ fromError mer, state, w)
+| isError mer = (Just $ fromError mer, state, w)
 // Send shutdown commands
 # (merr, {rChannel,sChannel}, w) = send (map toString end) chan w
-| isError merr = (Error $ fromError merr, state, w)
+| isError merr = (Just $ fromError merr, state, w)
 //Close channels
-= (Ok state, state, closeChannel sChannel (closeRChannel rChannel w))
+= (Nothing, state, closeChannel sChannel (closeRChannel rChannel w))
 
 process :: TCP_DuplexChannel String .a (IRCMessage .a *World -> *(Maybe [IRCMessage], .a, *World)) *World -> *(MaybeErrorString (), TCP_DuplexChannel, .a, *World)
 process chan acc state bot w
