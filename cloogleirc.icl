@@ -108,15 +108,15 @@ cloogle data w
 		, bs_strftime :: String
 		}
 
-//Start :: *World -> (MaybeErrorString (), *World)
+Start :: *World -> (Maybe String, *World)
 Start w
 # ([arg0:args], w) = getCommandLine w
 # (io, w) = stdio w
 # bs = parseCLI args 
-| isError bs = (Error $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
+| isError bs = (Just $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
 # (Ok bs) = bs
 # (merr, io, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown io (process bs.bs_strftime) w
-= (maybe (Ok ()) Error merr, snd $ fclose io w)
+= (merr, snd $ fclose io w)
 	where
 		parseCLI :: [String] -> MaybeErrorString BotSettings
 		parseCLI [] = Ok
