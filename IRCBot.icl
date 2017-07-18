@@ -14,29 +14,31 @@ import StdBool
 
 TIMEOUT :== Just 1000
 
-bot :: (String, Int) [IRCMessage] [IRCMessage] a (IRCMessage a *World -> (Maybe [IRCMessage], a, *World)) *World -> (MaybeErrorString a, *World)
+bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage .a *World -> .(Maybe [IRCMessage], .a, *World)) *World -> *(Maybe String, .a, *World)
 bot (host, port) start end state bot w
 //Lookup hostname
 # (ip, w) = lookupIPAddress host w
-| isNothing ip = (Error $ "DNS lookup for " +++ host +++ " failed", w)
+| isNothing ip
+	= (Error $ "DNS lookup for " +++ host +++ " failed", state, w)
 //Connect
 # (rpt,chan,w) = connectTCP_MT TIMEOUT (fromJust ip, port) w
-| rpt == TR_Expired = (Error $ "Connection to " +++ host +++ " timed out", w)
-| rpt == TR_NoSuccess = (Error $ "Could not connect to " +++ host, w)
+| rpt == TR_Expired
+	= (Error $ "Connection to " +++ host +++ " timed out", state, w)
+| rpt == TR_NoSuccess
+	= (Error $ "Could not connect to " +++ host, state, w)
 // Send startup commands
 # (merr, chan, w) = send (map toString start) (fromJust chan) w
-| isError merr = (Error $ fromError merr, w)
+| isError merr = (Error $ fromError merr, state, w)
 //Start processing function
 # (mer, chan, state, w) = process chan "" state bot w
-| isError mer = (Error $ fromError mer, w)
+| isError mer = (Error $ fromError mer, state, w)
 // Send shutdown commands
 # (merr, {rChannel,sChannel}, w) = send (map toString end) chan w
-| isError merr = (Error $ fromError merr, w)
+| isError merr = (Error $ fromError merr, state, w)
 //Close channels
-= (Ok state, closeChannel sChannel (closeRChannel rChannel w))
+= (Ok state, state, closeChannel sChannel (closeRChannel rChannel w))
 
-import StdDebug,StdMisc
-process :: TCP_DuplexChannel String a (IRCMessage a *World -> (Maybe [IRCMessage], a, *World)) *World -> (MaybeErrorString (), TCP_DuplexChannel, a, *World)
+process :: TCP_DuplexChannel String .a (IRCMessage .a *World -> *(Maybe [IRCMessage], .a, *World)) *World -> *(MaybeErrorString (), TCP_DuplexChannel, .a, *World)
 process chan acc state bot w
 //See if we have a message
 = case split "\r\n" acc of
@@ -51,7 +53,6 @@ process chan acc state bot w
 	//We have a successfull split and therefore we process at least one message
 	[m:xs]
 		# acc = join "\r\n" xs
-		| not (trace_tn $ "Full message: '" +++ m +++ "'") = undef
 		= case parseIRCMessage $ m +++ "\r\n" of
 			(Left err) = (Error $ "IRC Parsing error: " +++ join "\n" err, chan, state, w)
 			(Right msg)

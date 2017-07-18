@@ -15,6 +15,7 @@ import Internet.HTTP
 import Text.JSON
 
 import Text.URI
+import System.Time
 
 import Control.Applicative
 import qualified Control.Monad as CM
@@ -104,15 +105,18 @@ cloogle data w
 		, bs_autojoin :: [String]
 		, bs_port     :: Int
 		, bs_server   :: String
+		, bs_strftime :: String
 		}
 
-Start :: *World -> (MaybeErrorString (), *World)
+//Start :: *World -> (MaybeErrorString (), *World)
 Start w
 # ([arg0:args], w) = getCommandLine w
+# (io, w) = stdio w
 # bs = parseCLI args 
-| isError bs = (Error $ "\n" +++ fromError bs +++ "\n", w)
+| isError bs = (Error $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
 # (Ok bs) = bs
-= bot (bs.bs_server, bs.bs_port) (startup bs) shutdown () process w
+# (merr, io, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown io (process bs.bs_strftime) w
+= (maybe (Ok ()) Error merr, snd $ fclose io w)
 	where
 		parseCLI :: [String] -> MaybeErrorString BotSettings
 		parseCLI [] = Ok
@@ -121,8 +125,11 @@ Start w
 			, bs_autojoin = []
 			, bs_port     = 6667
 			, bs_server   = "irc.freenode.net"
+			, bs_strftime = "%s"
 			}
 		parseCLI [a:as]
+		| a == "-f" || a == "--strftime"
+			= arg1 "--strftime" as \a c->{c & bs_strftime=a}
 		| a == "-n" || a == "--nick"
 			= arg1 "--nick" as \a c->{c & bs_nick=a}
 		| a == "-ns" || a == "--nickserv"
@@ -132,10 +139,11 @@ Start w
 		| a == "-p" || a == "--port"
 			= arg1 "--port" as \a c->{c & bs_port=toInt a}
 		| a == "-s" || a == "--server"
-			= arg1 "--port" as \a c->{c & bs_server=a}
+			= arg1 "--server" as \a c->{c & bs_server=a}
 		| a == "-h" || a == "--help" = Error $ join "\n" $
 			[ "Usage: cloogle [OPTS]"
 			, "Options:"
+			, "\t--strftime/-f FORMAT   strftime format used in the output. default: %s\n"
 			, "\t--nick/-n NICKNAME     Use the given nickname instead of clooglebot"
 			, "\t--nickserv/-ns PW      Identify via the given password with NickServ"
 			, "\t--port/-p PORT         Use the given port instead of port 6667"
@@ -161,14 +169,24 @@ Start w
 				[JOIN (CSepList bs.bs_autojoin) Nothing]
 		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
-		process :: IRCMessage () *World -> (Maybe [IRCMessage], (), *World)
-		process im s w = case im.irc_command of
-			Left numr = (Just [], (), w)
+		//process :: String IRCMessage *File *World -> (Maybe [IRCMessage], *File, *World)
+		process strf im io w
+		# (io, w) = log strf " (r): " im (io, w)
+		= case im.irc_command of
+			Left numr = (Just [], io, w)
 			Right cmd = case process` im.irc_prefix cmd w of
-				(Nothing, w) = (Nothing, (), w)
-				(Just cs, w) = (Just $ map toPrefix cs, (), w)
+				(Nothing, w) = (Nothing, io, w)
+				(Just cs, w)
+				# msgs = map toPrefix cs
+				# (io, w) = foldr (log strf " (s): ") (io, w) msgs
+				= (Just msgs, io, w)
 
-		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
+		//log :: String String IRCMessage (*File, *World) -> (*File, *World)
+		log strf pref m (io, w)
+		# (t, w) = localTime w
+		= (io <<< strfTime strf t <<< pref <<< toString m, w)
+
+		//process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (Just (Left user)) (PRIVMSG t m) w
 			| m == "!restart" = (Nothing, w)
 			| m.[0] == '!'
@@ -182,7 +200,7 @@ Start w
 		process` _ (PING t mt) w = (Just [PONG t mt], w)
 		process` _ _ w = (Just [], w)
 
-		realProcess :: [String] *World -> ([String], *World)
+		//realProcess :: [String] *World -> ([String], *World)
 		realProcess ["help",x:xs] w = ((case x of
 			"help" =
 				[ "Usage: !help [ARG]"
