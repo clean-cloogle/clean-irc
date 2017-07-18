@@ -38,7 +38,7 @@ bot (host, port) start end state bot w
 //Close channels
 = (Nothing, state, closeChannel sChannel (closeRChannel rChannel w))
 
-process :: TCP_DuplexChannel String .a (IRCMessage .a *World -> *(Maybe [IRCMessage], .a, *World)) *World -> *(MaybeErrorString (), TCP_DuplexChannel, .a, *World)
+process :: TCP_DuplexChannel String .a (IRCMessage .a *World -> (Maybe [IRCMessage], .a, *World)) *World -> (MaybeErrorString (), TCP_DuplexChannel, .a, *World)
 process chan acc state bot w
 //See if we have a message
 = case split "\r\n" acc of

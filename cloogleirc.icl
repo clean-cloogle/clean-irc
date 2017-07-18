@@ -169,7 +169,7 @@ Start w
 				[JOIN (CSepList bs.bs_autojoin) Nothing]
 		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
-		//process :: String IRCMessage *File *World -> (Maybe [IRCMessage], *File, *World)
+		process :: String IRCMessage *File *World -> *(Maybe [IRCMessage], *File, *World)
 		process strf im io w
 		# (io, w) = log strf " (r): " im (io, w)
 		= case im.irc_command of
@@ -181,12 +181,12 @@ Start w
 				# (io, w) = foldr (log strf " (s): ") (io, w) msgs
 				= (Just msgs, io, w)
 
-		//log :: String String IRCMessage (*File, *World) -> (*File, *World)
+		log :: String String IRCMessage (*File, *World) -> (*File, *World)
 		log strf pref m (io, w)
 		# (t, w) = localTime w
 		= (io <<< strfTime strf t <<< pref <<< toString m, w)
 
-		//process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
+		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (Just (Left user)) (PRIVMSG t m) w
 			| m == "!restart" = (Nothing, w)
 			| m.[0] == '!'
@@ -200,7 +200,7 @@ Start w
 		process` _ (PING t mt) w = (Just [PONG t mt], w)
 		process` _ _ w = (Just [], w)
 
-		//realProcess :: [String] *World -> ([String], *World)
+		realProcess :: [String] *World -> ([String], *World)
 		realProcess ["help",x:xs] w = ((case x of
 			"help" =
 				[ "Usage: !help [ARG]"
