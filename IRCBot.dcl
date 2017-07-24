@@ -24,4 +24,4 @@ from Data.Error import :: MaybeErrorString, :: MaybeError
  * param: World
  * return: Maybe an error, the state and the new world
 */
-bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage .a *World -> *(Maybe [IRCMessage], .a, *World)) *World -> *(Maybe String, .a, *World)
+bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage -> (.a -> .(*World -> *(Maybe [IRCMessage], .a, *World)))) *World -> *(Maybe String, .a, *World)

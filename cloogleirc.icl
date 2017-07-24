@@ -33,9 +33,6 @@ import TCPIP
 import IRC
 import IRCBot
 
-TIMEOUT :== Just 10000
-SERVER :== "irc.freenode.net"
-
 shorten :: String *World -> (String, *World)
 shorten s w 
 # s = if (startsWith "http://" s) s (if (startsWith "https://" s) s ("http://" + s))
@@ -95,9 +92,7 @@ cloogle data w
 		= join "\n" (map maxWidth lines)
 		
 		maxWidth :: String -> String
-		maxWidth s
-		| size s > 80 = subString 0 77 s + "..."
-		= s
+		maxWidth s = if (size s > 80) (subString 0 77 s + "...") s
 
 :: BotSettings =
 		{ bs_nick     :: String
@@ -113,10 +108,10 @@ Start w
 # ([arg0:args], w) = getCommandLine w
 # (io, w) = stdio w
 # bs = parseCLI args 
-| isError bs = (Just $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
+//| isError bs = (Just $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
 # (Ok bs) = bs
 # (merr, io, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown io (process bs.bs_strftime) w
-= (merr, snd $ fclose io w)
+= (Nothing, w)//= (merr, snd $ fclose io w)
 	where
 		parseCLI :: [String] -> MaybeErrorString BotSettings
 		parseCLI [] = Ok
@@ -169,7 +164,7 @@ Start w
 				[JOIN (CSepList bs.bs_autojoin) Nothing]
 		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
-		process :: String IRCMessage *File *World -> *(Maybe [IRCMessage], *File, *World)
+		process :: String !IRCMessage *File !*World -> (Maybe [IRCMessage], *File, !*World)
 		process strf im io w
 		# (io, w) = log strf " (r): " im (io, w)
 		= case im.irc_command of
@@ -182,9 +177,9 @@ Start w
 				= (Just msgs, io, w)
 
 		log :: String String IRCMessage (*File, *World) -> (*File, *World)
-		log strf pref m (io, w)
-		# (t, w) = localTime w
-		= (io <<< strfTime strf t <<< pref <<< toString m, w)
+		log strf pref m (io, w) = (io, w)
+//		# (t, w) = localTime w
+//		= (io <<< strfTime strf t <<< pref <<< toString m, w)
 
 		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (Just (Left user)) (PRIVMSG t m) w
