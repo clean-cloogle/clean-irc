@@ -33,6 +33,8 @@ import TCPIP
 import IRC
 import IRCBot
 
+import StdMisc, StdDebug
+
 shorten :: String *World -> (String, *World)
 shorten s w 
 # s = if (startsWith "http://" s) s (if (startsWith "https://" s) s ("http://" + s))
@@ -107,6 +109,7 @@ Start :: *World -> (Maybe String, *World)
 Start w
 # ([arg0:args], w) = getCommandLine w
 # (io, w) = stdio w
+# io = io <<< "\n"
 # bs = parseCLI args 
 //| isError bs = (Just $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
 # (Ok bs) = bs
@@ -166,20 +169,20 @@ Start w
 
 		process :: String !IRCMessage *File !*World -> (Maybe [IRCMessage], *File, !*World)
 		process strf im io w
-		# (io, w) = log strf " (r): " im (io, w)
+		#! (io, w) = log strf " (r): " im (io, w)
 		= case im.irc_command of
 			Left numr = (Just [], io, w)
 			Right cmd = case process` im.irc_prefix cmd w of
 				(Nothing, w) = (Nothing, io, w)
 				(Just cs, w)
 				# msgs = map toPrefix cs
-				# (io, w) = foldr (log strf " (s): ") (io, w) msgs
+				#! (io, w) = foldr (log strf " (s): ") (io, w) msgs
 				= (Just msgs, io, w)
 
-		log :: String String IRCMessage (*File, *World) -> (*File, *World)
-		log strf pref m (io, w) = (io, w)
-//		# (t, w) = localTime w
-//		= (io <<< strfTime strf t <<< pref <<< toString m, w)
+		log :: String String IRCMessage (!*File, !*World) -> (!*File, !*World)
+		log strf pref m (io, w)
+		#! (t, w) = localTime w
+		= (io <<< strfTime strf t <<< pref <<< toString m, w)
 
 		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (Just (Left user)) (PRIVMSG t m) w
