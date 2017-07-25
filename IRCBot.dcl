@@ -22,6 +22,6 @@ from Data.Error import :: MaybeErrorString, :: MaybeError
  *                If the response is nothing the connection is closed
  *                All items in the list are sent back
  * param: World
- * return: Maybe the state together with the new world
+ * return: Maybe an error, the state and the new world
 */
-bot :: (String, Int) [IRCMessage] [IRCMessage] a (IRCMessage a *World -> (Maybe [IRCMessage], a, *World)) *World -> (MaybeErrorString a, *World)
+bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage -> (.a -> .(*World -> *(Maybe [IRCMessage], .a, *World)))) *World -> *(Maybe String, .a, *World)

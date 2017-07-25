@@ -1,7 +1,7 @@
 CLEAN_HOME?=/opt/clean
 CLM:=clm
 
-override CLMFLAGS+=-nt -dynamics
+override CLMFLAGS+=-nt -dynamics -lat -d -nsa -nou
 GCCVERSIONGTEQ6:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 6)
 ifeq "$(GCCVERSIONGTEQ6)" "1"
 	override CLMFLAGS+=-l -no-pie
@@ -15,7 +15,7 @@ CLMLIBS:=\
 	-I $(CLEAN_HOME)/lib/Dynamics\
 	-I ./libcloogle
 
-BINARIES:=IRC cloogleirc #test
+BINARIES:=IRC IRCBot cloogleirc #test
 
 all: $(BINARIES)
 
