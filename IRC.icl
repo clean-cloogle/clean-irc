@@ -132,7 +132,7 @@ instance toString IRCUser where
 	toString m = m.irc_nick <+ maybe "" ((<+) "!") m.irc_user
 		<+ maybe "" ((<+) "@") m.irc_host
 instance toString IRCCommand where
-	toString m = jon " " (gIRCPrint{|*|} m) +++ "\r\n"
+	toString m = jon " " (gIRCPrint{|*|} m)
 instance toString IRCReplies where toString r = printToString r
 instance toString IRCErrors where toString r = printToString r
 

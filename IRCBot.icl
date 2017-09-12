@@ -27,7 +27,7 @@ bot (host, port) start end state bot w
 | rpt == TR_NoSuccess
 	= (Just $ "Could not connect to " +++ host, state, w)
 // Send startup commands
-# (merr, chan, w) = send (map toString start) (fromJust chan) w
+# (merr, chan, w) = send [toString s +++ "\r\n" \\ s <- start] (fromJust chan) w
 | isError merr = (Just $ fromError merr, state, w)
 //Start processing function
 # (mer, chan, state, w) = process chan "" state bot w
@@ -59,7 +59,7 @@ process chan acc state bot w
 			# (mircc, state, w) = bot msg state w
 			| isNothing mircc = (Ok (), chan, state, w) // Bot asks to quit
 			//Possible send the commands
-			# (merr, chan, w) = send (map toString $ fromJust mircc) chan w
+			# (merr, chan, w) = send [toString c +++ "\r\n" \\ c <- fromJust mircc] chan w
 			| isError merr = (Error $ fromError merr, chan, state, w)
 			//Recurse
 			= process chan acc state bot w
