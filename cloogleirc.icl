@@ -191,6 +191,7 @@ Start w
 			| m.[0] == '!'
 				# (msgs, w) = realProcess (split " " $ m % (1, size m)) w
 				= (Just $ map reply msgs, w)
+			| m % (0,4) == "\001PING" = (Just [reply m], w)
 			= (Just [], w)
 		where
 			reply = case (\(CSepList [t:_]) -> t.[0]) t of
