@@ -56,7 +56,7 @@ shorten s w
 
 cloogle :: String *World -> (String, *World)
 cloogle data w
-# (mer, w) = doHTTPRequestL
+# (mer, w) = doHTTPRequestFollowRedirects
 		{ newHTTPRequest
 		& req_path = "/api.php"
 		, req_query = "?str=" + urlEncode data
@@ -67,6 +67,7 @@ cloogle data w
 # resp = fromOk mer
 = case fromJSON $ fromString resp.HTTPResponse.rsp_data of
 	Nothing = ("couldn't parse json", w)
+	Just {return=127} = ("No results for " + data, w)
 	Just clr = ("Results for " + data + " -- https://cloogle.org/#" +
 		replaceSubString "+" "%20" (urlEncode data) + "\n" +
 		processResults clr, w)
