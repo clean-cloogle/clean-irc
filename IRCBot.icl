@@ -69,13 +69,13 @@ send [] chan w = (Ok (), chan, w)
 send [msg:msgs] {sChannel,rChannel} w
 # (rpt,i,sChannel,w) = send_MT TIMEOUT (toByteSeq msg) sChannel w
 | rpt <> TR_Success = (Error "Could not send message", {sChannel=sChannel,rChannel=rChannel}, w)
-# (_, w) = sleep 500000 w
+//# (_, w) = sleep 500000 w
 = send msgs {sChannel=sChannel,rChannel=rChannel} w
-	where
-		sleep :: !Int !*World -> (!Int, *World)
-		sleep i w = code {
-				ccall usleep "I:I:A"
-			}
+//	where
+//		sleep :: !Int !*World -> (!Int, *World)
+//		sleep i w = code {
+//				ccall usleep "I:I:A"
+//			}
 
 recv :: TCP_DuplexChannel *World -> (MaybeErrorString (Maybe String), TCP_DuplexChannel, *World)
 recv {sChannel,rChannel} w

@@ -177,7 +177,7 @@ Start w
 				(Nothing, w) = (Nothing, io, w)
 				(Just cs, w)
 				# msgs = map toPrefix cs
-				#! (io, w) = foldr (log strf " (s): ") (io, w) msgs
+//				#! (io, w) = foldr (log strf " (s): ") (io, w) msgs
 				= (Just msgs, io, w)
 
 		log :: String String IRCMessage (!*File, !*World) -> (!*File, !*World)
