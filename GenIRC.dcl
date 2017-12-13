@@ -1,5 +1,6 @@
 definition module GenIRC
 
+import StdGeneric
 from IRC import :: IRCCommand, :: CSepList
 from Data.Either import :: Either
 from Data.Maybe import :: Maybe

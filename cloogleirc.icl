@@ -20,7 +20,7 @@ import System.Time
 import Control.Applicative
 import qualified Control.Monad as CM
 import qualified Data.Map as DM
-from Control.Monad import class Monad, instance Monad Maybe, >>=
+from Control.Monad import class Monad(bind), instance Monad Maybe, >>=
 from Text.Encodings.UrlEncoding import urlEncode
 import System.CommandLine
 import Internet.HTTP
@@ -115,7 +115,7 @@ Start w
 //| isError bs = (Just $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
 # (Ok bs) = bs
 # (merr, io, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown io (process bs.bs_strftime) w
-= (Nothing, w)//= (merr, snd $ fclose io w)
+= (merr, snd $ fclose io w)
 	where
 		parseCLI :: [String] -> MaybeErrorString BotSettings
 		parseCLI [] = Ok
