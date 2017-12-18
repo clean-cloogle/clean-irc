@@ -1,7 +1,7 @@
 module cloogleirc
 
 import Cloogle
-import GenPrint
+import Data.Generics.GenPrint
 import StdEnv
 
 import Data.Functor
@@ -20,7 +20,7 @@ import System.Time
 import Control.Applicative
 import qualified Control.Monad as CM
 import qualified Data.Map as DM
-from Control.Monad import class Monad, instance Monad Maybe, >>=
+from Control.Monad import class Monad(bind), >>=
 from Text.Encodings.UrlEncoding import urlEncode
 import System.CommandLine
 import Internet.HTTP
