@@ -87,6 +87,9 @@ cloogle data w
 				+++ toString (length class_funs) +++ " class functions"
 		processResult (ModuleResult (br, _))
 			= "Module in " +++ br.library +++ ": " +++ br.modul
+		processResult (SyntaxResult (br, re))
+			= "Clean syntax: " +++ re.syntax_title +++ "\n"
+				+++ concat (intersperse "; " re.syntax_code)
 
 		limitResults :: String -> String
 		limitResults s
