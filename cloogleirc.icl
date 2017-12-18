@@ -1,7 +1,7 @@
 module cloogleirc
 
 import Cloogle
-import GenPrint
+import Data.Generics.GenPrint
 import StdEnv
 
 import Data.Functor
@@ -20,7 +20,7 @@ import System.Time
 import Control.Applicative
 import qualified Control.Monad as CM
 import qualified Data.Map as DM
-from Control.Monad import class Monad(bind), instance Monad Maybe, >>=
+from Control.Monad import class Monad(bind), >>=
 from Text.Encodings.UrlEncoding import urlEncode
 import System.CommandLine
 import Internet.HTTP
@@ -87,6 +87,9 @@ cloogle data w
 				+++ toString (length class_funs) +++ " class functions"
 		processResult (ModuleResult (br, _))
 			= "Module in " +++ br.library +++ ": " +++ br.modul
+		processResult (SyntaxResult (br, re))
+			= "Clean syntax: " +++ re.syntax_title +++ "\n"
+				+++ concat (intersperse "; " re.syntax_code)
 
 		limitResults :: String -> String
 		limitResults s
@@ -108,17 +111,18 @@ cloogle data w
 
 Start :: *World -> (Maybe String, *World)
 Start w
-# ([arg0:args], w) = getCommandLine w
+# ([cmd:args], w) = getCommandLine w
 # (io, w) = stdio w
-# io = io <<< "\n"
-# bs = parseCLI args 
-//| isError bs = (Just $ "\n" +++ fromError bs +++ "\n", snd $ fclose io w)
+# bs = parseCLI cmd args
+| isError bs
+	# io = io <<< fromError bs <<< "\n"
+	= (Nothing, snd $ fclose io w)
 # (Ok bs) = bs
 # (merr, io, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown io (process bs.bs_strftime) w
 = (merr, snd $ fclose io w)
 	where
-		parseCLI :: [String] -> MaybeErrorString BotSettings
-		parseCLI [] = Ok
+		parseCLI :: String [String] -> MaybeErrorString BotSettings
+		parseCLI _ [] = Ok
 			{ bs_nick     = "clooglebot"
 			, bs_nickserv = Nothing
 			, bs_autojoin = []
@@ -126,7 +130,7 @@ Start w
 			, bs_server   = "irc.freenode.net"
 			, bs_strftime = "%s"
 			}
-		parseCLI [a:as]
+		parseCLI cmd [a:as]
 		| a == "-f" || a == "--strftime"
 			= arg1 "--strftime" as \a c->{c & bs_strftime=a}
 		| a == "-n" || a == "--nick"
@@ -140,7 +144,7 @@ Start w
 		| a == "-s" || a == "--server"
 			= arg1 "--server" as \a c->{c & bs_server=a}
 		| a == "-h" || a == "--help" = Error $ join "\n" $
-			[ "Usage: cloogle [OPTS]"
+			[ "Usage: " + cmd + " [OPTS]"
 			, "Options:"
 			, "\t--strftime/-f FORMAT   strftime format used in the output. default: %s\n"
 			, "\t--nick/-n NICKNAME     Use the given nickname instead of clooglebot"
@@ -152,9 +156,9 @@ Start w
 			, "\t                       has to be escaped in most shells"
 			]
 		= Error $ "Unknown option: " +++ a
-
-		arg1 name [] _ = Error $ name +++ " requires an argument"
-		arg1 name [a:as] f = parseCLI as >>= Ok o f a
+		where
+			arg1 name [] _ = Error $ name +++ " requires an argument"
+			arg1 name [a:as] f = parseCLI cmd as >>= Ok o f a
 
 		nickserv pw = PRIVMSG (CSepList ["NickServ"]) $ "IDENTIFY " +++ pw
 
@@ -183,7 +187,7 @@ Start w
 		log :: String String IRCMessage (!*File, !*World) -> (!*File, !*World)
 		log strf pref m (io, w)
 		#! (t, w) = localTime w
-		= (io <<< strfTime strf t <<< pref <<< toString m, w)
+		= (io <<< strfTime strf t <<< pref <<< toString m <<< "\n", w)
 
 		process` :: (Maybe (Either IRCUser String)) IRCCommand *World -> (Maybe [IRCCommand], *World)
 		process` (Just (Left user)) (PRIVMSG t m) w
