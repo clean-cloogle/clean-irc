@@ -42,6 +42,7 @@ where
 		, parseIRCMessage ":wilhelm.freenode.net 001 clooglebot :Welcome to the freenode Internet Relay Chat Network clooglebot\r\n"
 		, parseIRCMessage "PING :orwell.freenode.net\r\n"
 		, parseIRCMessage ":ChanServ!ChanServ@services. MODE #cloogle +o frobnicator\r\n"
+		, parseIRCMessage ":qbot_v01!~qbot@ip-213-124-170-20.ip.prioritytelecom.net PRIVMSG ##chinees :[link] Cloogle - https://cloogle.org"
 		]
 
 parseIRCMessage :: String -> Either [Error] IRCMessage
@@ -78,7 +79,7 @@ where
 	
 	parseNick :: Parser Char String
 	parseNick = pAlpha 
-		>>= \c ->pMany (pAlpha <|> pDigit <|> pOneOf (fromString "-[]\\`^{}"))
+		>>= \c ->pMany (pAlpha <|> pDigit <|> pOneOf (fromString "_-[]\\`^{}"))
 		>>= \cs->pure (toString [c:cs])
 
 	parseHost :: Parser Char String
