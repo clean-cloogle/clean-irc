@@ -1,7 +1,7 @@
 module cloogleirc
 
 import Cloogle
-import Data.Generics.GenPrint
+import Text.GenPrint
 import StdEnv
 
 import Data.Functor
@@ -12,7 +12,7 @@ from Text import class Text(..), instance Text String, instance + String
 
 import Internet.HTTP
 
-import Text.JSON
+import Text.GenJSON
 
 import Text.URI
 import System.Time
@@ -118,8 +118,9 @@ Start w
 	# io = io <<< fromError bs <<< "\n"
 	= (Nothing, snd $ fclose io w)
 # (Ok bs) = bs
-# (merr, io, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown io (process bs.bs_strftime) w
-= (merr, snd $ fclose io w)
+# (_, w) = fclose io w
+# (merr, _, w) = bot (bs.bs_server, bs.bs_port) (startup bs) shutdown () (process bs.bs_strftime) w
+= (merr, w)
 	where
 		parseCLI :: String [String] -> MaybeErrorString BotSettings
 		parseCLI _ [] = Ok
@@ -172,17 +173,18 @@ Start w
 				[JOIN (CSepList bs.bs_autojoin) Nothing]
 		shutdown = map toPrefix [QUIT $ Just "Bye"]
 
-		process :: String !IRCMessage *File !*World -> (Maybe [IRCMessage], *File, !*World)
-		process strf im io w
-		#! (io, w) = log strf " (r): " im (io, w)
+		process :: String !IRCMessage () !*World -> (Maybe [IRCMessage], (), !*World)
+		process strf im _ w
+		# (io ,w) = stdio w
+		# (io, w) = log strf " (r): " im (io, w)
+		# (_, w) = fclose io w
 		= case im.irc_command of
-			Left numr = (Just [], io, w)
+			Left numr = (Just [], (), w)
 			Right cmd = case process` im.irc_prefix cmd w of
-				(Nothing, w) = (Nothing, io, w)
+				(Nothing, w) = (Nothing, (), w)
 				(Just cs, w)
 				# msgs = map toPrefix cs
-//				#! (io, w) = foldr (log strf " (s): ") (io, w) msgs
-				= (Just msgs, io, w)
+				= (Just msgs, (), w)
 
 		log :: String String IRCMessage (!*File, !*World) -> (!*File, !*World)
 		log strf pref m (io, w)
