@@ -2,7 +2,9 @@
 while true
 do
 	git pull origin master
-	make
+	git submodule init
+	git submodule update
+	make -B
 	./cloogleirc "$@"
 	sleep 5s
 done

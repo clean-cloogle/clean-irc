@@ -1,6 +1,6 @@
 module cloogleirc
 
-import Cloogle
+import Cloogle.API
 import Text.GenPrint
 import StdEnv
 

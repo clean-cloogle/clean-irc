@@ -3,7 +3,7 @@ implementation module IRC
 import StdList, StdTuple, StdOverloaded, StdFunc, StdString, StdChar, StdBool
 import _SystemArray
 
-import GenPrint
+import Text.GenPrint
 import GenIRC
 
 import Control.Applicative

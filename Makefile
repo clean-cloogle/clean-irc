@@ -1,14 +1,10 @@
-CLEAN_HOME?=/opt/clean
 CLM:=clm
 
 override CLMFLAGS+=-nt
 
 CLMLIBS:=\
-	-I $(CLEAN_HOME)/lib/Platform\
-	-I $(CLEAN_HOME)/lib/Platform/Deprecated/StdLib\
-	-I $(CLEAN_HOME)/lib/Generics\
-	-I $(CLEAN_HOME)/lib/TCPIP\
-	-I $(CLEAN_HOME)/lib/Dynamics\
+	-IL Platform\
+	-IL TCPIP\
 	-I ./libcloogle\
 	-I ./clean-selectloop/libraries
 
