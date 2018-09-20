@@ -1,8 +1,9 @@
 definition module IRCBot
 
-from IRC import :: IRCMessage
-from Data.Maybe import :: Maybe
 from Data.Error import :: MaybeErrorString, :: MaybeError
+from Data.Maybe import :: Maybe
+
+from IRC import :: IRCMessage
 
 /*
  * Spawn an IRC Bot

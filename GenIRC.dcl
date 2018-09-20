@@ -1,10 +1,12 @@
 definition module GenIRC
 
 import StdGeneric
-from IRC import :: IRCCommand, :: CSepList
+
 from Data.Either import :: Either
 from Data.Maybe import :: Maybe
 from Text.Parsers.Simple.Core import :: Error
+
+from IRC import :: IRCCommand, :: CSepList
 
 generic gIRCParse a :: [String] -> (Either Error a, [String])
 generic gIRCPrint a :: a -> [String]

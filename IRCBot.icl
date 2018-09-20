@@ -1,15 +1,15 @@
 implementation module IRCBot
 
-from Data.Func import $
+import StdEnv
+
 import Data.Either
-import Data.Error
+import Data.Func
 import Data.Maybe
-import Data.Functor
 import Data.Tuple
-import StdTuple
+import Text
+
 import IRC
-from Text import class Text(concat,split,join), instance Text String
-import StdList, StdString
+
 import TCPServer.Connection
 
 bot :: (String, Int) [IRCMessage] [IRCMessage] .a (IRCMessage -> (.a -> *(*World -> *(Maybe [IRCMessage], .a, *World)))) !*World -> *(Maybe String, .a, !*World)

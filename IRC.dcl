@@ -1,8 +1,9 @@
 definition module IRC
 
-from Data.Maybe import :: Maybe
-from Data.Either import :: Either
 from StdOverloaded import class fromInt, class toInt, class toString, class fromString
+
+from Data.Either import :: Either
+from Data.Maybe import :: Maybe
 from Text.Parsers.Simple.Core import :: Error
 
 :: IRCMessage =

@@ -1,19 +1,16 @@
 implementation module GenIRC
 
-from IRC import :: IRCCommand, :: CSepList(CSepList)
-from Data.Func import $
-from StdFunc import o, const
-
-from Text.Parsers.Simple.Core import :: Error
-
-import StdList
-import StdString
+import StdEnv
 import StdGeneric
+
 import Data.Either
+import Data.Func
+import Data.Functor
 import Data.Maybe
 import Data.Tuple
-import Data.Functor
-from Text import class Text(join,split,indexOf,concat), instance Text String
+import Text
+
+import IRC
 
 pOne [] = (Left "Expected an argument", [])
 pOne [a:as] = (Right a, as)

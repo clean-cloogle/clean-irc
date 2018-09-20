@@ -1,39 +1,28 @@
 module cloogleirc
 
-import Cloogle.API
-import Text.GenPrint
 import StdEnv
 
-import Data.Functor
-import Data.Maybe
+import Control.Applicative
+import Control.Monad => qualified join
 import Data.Either
-from Data.Func import $, mapSt
-from Text import class Text(..), instance Text String, instance + String
-
+import Data.Error
+import Data.Func
+import Data.Functor
+import Data.List
+import qualified Data.Map as DM
+import Data.Maybe
+import Data.Tuple
 import Internet.HTTP
-
+import System.CommandLine
+import System.Time
+import Text
+import Text.Encodings.UrlEncoding
 import Text.GenJSON
 
-import Text.URI
-import System.Time
+import Cloogle.API
 
-import Control.Applicative
-import qualified Control.Monad as CM
-import qualified Data.Map as DM
-from Control.Monad import class Monad(bind), >>=
-from Text.Encodings.UrlEncoding import urlEncode
-import System.CommandLine
-import Internet.HTTP
-import Data.Error
-import Data.List
-import Data.Functor
-import Data.Tuple
-
-import TCPIP
 import IRC
 import IRCBot
-
-import StdMisc, StdDebug
 
 shorten :: String *World -> (String, *World)
 shorten s w 

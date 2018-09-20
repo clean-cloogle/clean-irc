@@ -1,29 +1,18 @@
 implementation module IRC
 
-import StdList, StdTuple, StdOverloaded, StdFunc, StdString, StdChar, StdBool
-import _SystemArray
-
-import Text.GenPrint
-import GenIRC
+import StdEnv
 
 import Control.Applicative
-import Control.Monad
+import Control.Monad => qualified join
 import Data.Either
+import Data.Func
 import Data.Maybe
-import Data.Tuple
+import Text
+import Text.GenPrint
 import Text.Parsers.Simple.Chars
 import Text.Parsers.Simple.Core
 
-import StdDebug
-
-from Data.Functor import <$>
-from Data.Func import $
-from StdMisc import undef, abort
-from Text import class Text(lpad,trim,rtrim,split,indexOf,concat),
-	instance Text String
-import qualified Text
-
-jon :== 'Text'.join
+import GenIRC
 
 derive gPrint IRCErrors, IRCReplies, Maybe, Either, IRCUser, IRCNumReply
 
@@ -83,7 +72,7 @@ where
 		>>= \cs->pure (toString [c:cs])
 
 	parseHost :: Parser Char String
-	parseHost = jon "." <$> (pSepBy parseName (pToken '.'))
+	parseHost = join "." <$> (pSepBy parseName (pToken '.'))
 		>>= \s->optional (pToken '.') >>= pure o maybe s (\p->s+++toString s)
 		where
 			parseName :: Parser Char String
@@ -97,7 +86,7 @@ parseCmd cs = fst $ gIRCParse{|*|} $ argfun $ split " " $ toString cs
 		argfun [] = []
 		argfun [x:xs]
 		# x = trim x
-		| x.[0] == ':' = [jon " " $ [x % (1, size x):map rtrim xs]]
+		| x.[0] == ':' = [join " " $ [x % (1, size x):map rtrim xs]]
 		| otherwise = [x:argfun xs]
 
 //Reply
@@ -133,7 +122,7 @@ instance toString IRCUser where
 	toString m = m.irc_nick <+ maybe "" ((<+) "!") m.irc_user
 		<+ maybe "" ((<+) "@") m.irc_host
 instance toString IRCCommand where
-	toString m = jon " " (gIRCPrint{|*|} m) +++ "\r\n"
+	toString m = join " " (gIRCPrint{|*|} m) +++ "\r\n"
 instance toString IRCReplies where toString r = printToString r
 instance toString IRCErrors where toString r = printToString r
 
