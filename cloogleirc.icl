@@ -83,7 +83,7 @@ cloogle data w
 			= "ABC instruction: " +++ re.abc_instruction
 		processResult (ProblemResult pr)
 			= "Common problem: " +++ pr.problem_title
-				+++ "; see https://github.com/clean-cloogle/common-problems/blob/master/" +++ pr.problem_key +++ ".md"
+				+++ "; see https://gitlab.science.ru.nl/cloogle/common-problems/blob/master/" +++ pr.problem_key +++ ".md"
 
 		limitResults :: String -> String
 		limitResults s
