@@ -1,6 +1,6 @@
 [submodule "libcloogle"]
 	path = libcloogle
-	url = https://github.com/clean-cloogle/libcloogle.git
+	url = https://gitlab.science.ru.nl/cloogle/libcloogle.git
 [submodule "clean-selectloop"]
 	path = clean-selectloop
 	url = https://github.com/dopefishh/clean-selectloop.git
